@@ -6,8 +6,10 @@ import { NextResponse } from "next/server";
 export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
 
-  // Public: webhooks and health must be reachable without auth
+  // Public: login page, auth API, webhooks, health
   if (
+    pathname === "/login" ||
+    pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/webhooks/") ||
     pathname.startsWith("/api/contacts") ||
     pathname.startsWith("/api/health")
