@@ -71,14 +71,14 @@ try {
   );
 }
 
-// Step 4: AI Gateway (uses VERCEL_OIDC_TOKEN injected by `vercel env pull`)
+// Step 4: AI Gateway — accepts VERCEL_OIDC_TOKEN (auto on Vercel) or AI_GATEWAY_API_KEY (local)
 console.log("Step 4: Testing Vercel AI Gateway…");
-if (!process.env.VERCEL_OIDC_TOKEN) {
+if (!process.env.VERCEL_OIDC_TOKEN && !process.env["AI_GATEWAY_API_KEY"]) {
   fail(
     "AI Gateway",
-    "VERCEL_OIDC_TOKEN not found",
-    "OIDC token missing from environment",
-    "Run `vercel env pull .env.local` to get a local OIDC token, then re-run setup",
+    "No AI Gateway credentials found",
+    "Neither VERCEL_OIDC_TOKEN nor AI_GATEWAY_API_KEY is set",
+    "Set AI_GATEWAY_API_KEY in .env.local (Vercel Dashboard → AI → Gateways → API Keys)",
   );
 }
 try {
