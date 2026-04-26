@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeadGen Capture</title>
+  <style>
+    body { font-family: system-ui, sans-serif; width: 280px; padding: 16px; margin: 0; font-size: 13px; }
+    h1 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+    .field { margin-bottom: 10px; }
+    label { display: block; font-size: 11px; color: #6b7280; margin-bottom: 3px; font-weight: 500; }
+    input { width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 5px; padding: 5px 8px; font-size: 13px; }
+    button { width: 100%; padding: 7px; border: none; border-radius: 5px; font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+    #save-btn { background: #2563eb; color: white; }
+    #save-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+    .status { margin-top: 8px; padding: 7px 10px; border-radius: 5px; font-size: 12px; display: none; }
+    .status.success { background: #dcfce7; color: #166534; display: block; }
+    .status.error { background: #fee2e2; color: #991b1b; display: block; }
+    .sep { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+    #token-section { margin-top: 4px; }
+    #token-section label { font-size: 11px; color: #6b7280; }
+    #token-section input { font-family: monospace; font-size: 11px; }
+    #save-token-btn { background: #f3f4f6; color: #374151; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>LeadGen — LinkedIn Capture</h1>
+
+  <div id="profile-section">
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="name" placeholder="Captured from page…" readonly />
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="title" placeholder="—" readonly />
+    </div>
+    <div class="field">
+      <label>Company</label>
+      <input type="text" id="company" placeholder="—" readonly />
+    </div>
+    <button id="save-btn">Save Contact</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <hr class="sep" />
+
+  <div id="token-section">
+    <div class="field">
+      <label>API Token (from app Settings)</label>
+      <input type="password" id="api-token" placeholder="lgat_…" />
+    </div>
+    <button id="save-token-btn">Save Token</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
