@@ -60,7 +60,7 @@ try {
 console.log("Step 3: Running Drizzle migration…");
 try {
   const { execSync } = await import("child_process");
-  execSync("bun db:push --accept-data-loss", { stdio: "pipe" });
+  execSync("bun db:push", { stdio: "pipe" });
   ok("Schema migrated");
 } catch (e) {
   fail(
