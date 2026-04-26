@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
 import { searchOrgs, RateLimitError } from "@/lib/services/orgs/propublica";
 import { logger } from "@/lib/logger";
-import { eq, ilike, and } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -20,11 +20,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const cached = eins.length > 0
       ? await db.select({ ein: orgs.ein, id: orgs.id, missionText: orgs.missionText })
           .from(orgs)
-          .where(
-            eins.length === 1
-              ? eq(orgs.ein, eins[0])
-              : undefined,
-          )
+          .where(inArray(orgs.ein, eins))
       : [];
 
     const cachedMap = new Map(cached.map((c) => [c.ein, c]));

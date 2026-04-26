@@ -59,7 +59,12 @@ async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<Sear
   if (res.status === 429) throw new RateLimitError("ProPublica rate limit hit");
   if (!res.ok) throw new Error(`ProPublica error: ${res.status}`);
 
-  return res.json();
+  const data = await res.json();
+  // ProPublica returns ein as a number — normalize to string throughout
+  for (const org of data.organizations ?? []) {
+    org.ein = String(org.ein);
+  }
+  return data;
 }
 
 export async function searchOrgs(params: ProPublicaSearchParams): Promise<SearchResult> {
