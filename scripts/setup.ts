@@ -109,44 +109,38 @@ try {
   if (!sampleOrg) throw new Error("Empty results");
   ok(`ProPublica reachable — found: ${sampleOrg.name}`);
 } catch (e) {
-  fail(
-    "ProPublica",
-    "Network error or rate limit",
-    String(e),
-    "Check internet connection and retry in 60s",
-  );
+  console.warn(`  ⚠ ProPublica unavailable (${e}) — skipping sample draft`);
 }
 
-// Step 6: Generate sample draft
+// Step 6: Generate sample draft (skipped if ProPublica was unavailable)
 console.log("Step 6: Generating sample LLM email draft…");
-const draftSchema = z.object({ subject: z.string(), body: z.string() });
-try {
-  const orgCtx = {
-    orgName: sampleOrg!.name,
-    nteeCode: sampleOrg!.ntee_code,
-    state: sampleOrg!.state,
-    totalRevenue: sampleOrg!.income_amount != null ? String(sampleOrg!.income_amount) : null,
-  };
+if (!sampleOrg) {
+  console.warn("  ⚠ Skipped — no sample org from ProPublica");
+} else {
+  const draftSchema = z.object({ subject: z.string(), body: z.string() });
+  try {
+    const orgCtx = {
+      orgName: sampleOrg.name,
+      nteeCode: sampleOrg.ntee_code,
+      state: sampleOrg.state,
+      totalRevenue: sampleOrg.income_amount != null ? String(sampleOrg.income_amount) : null,
+    };
 
-  const result = await generateText({
-    model: gateway("anthropic/claude-haiku-4.5"),
-    output: Output.object({ schema: draftSchema }),
-    system: `You are helping Jason draft a personalized cold email to a non-profit about his volunteer match app, VolunteerReady. Tone: warm, specific, low-pressure. Length: 3 short paragraphs. Output JSON: { "subject": "...", "body": "..." }`,
-    prompt: JSON.stringify(orgCtx),
-  });
+    const result = await generateText({
+      model: gateway("anthropic/claude-haiku-4.5"),
+      output: Output.object({ schema: draftSchema }),
+      system: `You are helping Jason draft a personalized cold email to a non-profit about his volunteer match app, VolunteerReady. Tone: warm, specific, low-pressure. Length: 3 short paragraphs. Output JSON: { "subject": "...", "body": "..." }`,
+      prompt: JSON.stringify(orgCtx),
+    });
 
-  const draft = (result as any).output as { subject: string; body: string };
+    const draft = (result as any).output as { subject: string; body: string };
 
-  console.log(`\n✓ Setup complete. Sample draft generated for ${sampleOrg!.name}:\n`);
-  console.log(`  Subject: ${draft.subject}`);
-  console.log(`\n  ${draft.body.split("\n").join("\n  ")}`);
-} catch (e) {
-  fail(
-    "Draft generation",
-    "LLM call failed",
-    String(e),
-    "Run `vercel env pull .env.local --yes` to refresh your OIDC token and try again",
-  );
+    console.log(`\n✓ Sample draft generated for ${sampleOrg.name}:\n`);
+    console.log(`  Subject: ${draft.subject}`);
+    console.log(`\n  ${draft.body.split("\n").join("\n  ")}`);
+  } catch (e) {
+    console.warn(`  ⚠ Draft generation failed: ${e}`);
+  }
 }
 
 console.log("\n✓ Run `bun dev` to start the app.\n");
