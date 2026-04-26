@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "LeadGen LinkedIn Capture",
+  "version": "1.0.0",
+  "description": "One-click capture of LinkedIn contact info for the LeadGen outreach tool.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://www.linkedin.com/in/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
