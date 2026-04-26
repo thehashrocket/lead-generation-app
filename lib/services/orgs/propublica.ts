@@ -32,26 +32,34 @@ export type SearchResult = {
 };
 
 async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<SearchResult> {
-  const url = new URL(`${BASE_URL}/search.json`);
-  if (params.q) url.searchParams.set("q", params.q);
-  if (params.nteeCode) url.searchParams.set("ntee[]", params.nteeCode);
-  if (params.state) url.searchParams.set("state[]", params.state);
-  if (params.page) url.searchParams.set("page", String(params.page));
+  const buildUrl = (includeFilters: boolean) => {
+    const url = new URL(`${BASE_URL}/search.json`);
+    if (params.q) url.searchParams.set("q", params.q);
+    if (includeFilters) {
+      if (params.nteeCode) url.searchParams.set("ntee[]", params.nteeCode);
+      if (params.state) url.searchParams.set("state[]", params.state);
+    }
+    if (params.page) url.searchParams.set("page", String(params.page));
+    return url.toString();
+  };
 
-  const res = await fetch(url.toString(), {
-    headers: { "User-Agent": "LeadGenApp/1.0 (personal outreach tool)" },
-    next: { revalidate: 0 },
-  });
+  const doFetch = (url: string) =>
+    fetch(url, {
+      headers: { "User-Agent": "LeadGenApp/1.0 (personal outreach tool)" },
+      next: { revalidate: 0 },
+    });
 
-  if (res.status === 429) {
-    throw new RateLimitError("ProPublica rate limit hit");
+  let res = await doFetch(buildUrl(true));
+
+  // ProPublica's filter endpoints are intermittently broken — fall back to keyword-only
+  if (res.status === 500 && (params.nteeCode || params.state)) {
+    res = await doFetch(buildUrl(false));
   }
-  if (!res.ok) {
-    throw new Error(`ProPublica error: ${res.status}`);
-  }
 
-  const data = await res.json();
-  return data;
+  if (res.status === 429) throw new RateLimitError("ProPublica rate limit hit");
+  if (!res.ok) throw new Error(`ProPublica error: ${res.status}`);
+
+  return res.json();
 }
 
 export async function searchOrgs(params: ProPublicaSearchParams): Promise<SearchResult> {
