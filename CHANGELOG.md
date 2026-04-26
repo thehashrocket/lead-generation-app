@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0.0] - 2026-04-26
+
+### Added
+- Full 990-powered nonprofit outreach pipeline: search nonprofits via ProPublica (NTEE code, state, revenue filters with keyword-only fallback on API errors), enrich org profiles from IRS 990 XML via SAX streaming parser, generate personalized cold email drafts via Vercel AI Gateway (Claude Sonnet with Haiku fallback), send via Resend with VERP reply tracking.
+- Inbound reply webhook: classifies replies as human/OOO/DSN/autoresponder, stores thread state, auto-forwards human replies to personal Gmail with circuit breaker and per-send forwarding cap.
+- Delivery event webhook: tracks delivered/bounced/complained status, auto-adds bounced/complained emails to suppression list.
+- Chrome MV3 extension: one-click LinkedIn contact capture via popup + content script, authenticated with Bearer token to `/api/contacts`.
+- CSV export for search results, captured contacts, and sent-email history.
+- Settings page: API token management (generate/revoke), health dashboard (DB + ProPublica + Resend), prompt performance view, weekly send cap with dev-only reset.
+- Sent view with replied-first sort, inline reply thread expansion showing OOO/human classification.
+- Draft slide-over Sheet with 990 mission context panel and auto-save on subject/body edit.
+- `bun run setup` wizard for environment validation, DB migration, ProPublica/Resend/AI Gateway health checks.
+- Vitest unit test suite (26 tests: reply classifier, 990 parser, CSV utilities, webhook signature verification).
+- Playwright E2E config scaffolded.
+
+### Fixed
+- Webhook idempotency: replaced read-then-insert race with atomic `onConflictDoNothing` to prevent unhandled unique constraint errors on concurrent Resend retry deliveries.
+- Loop-bypass header check moved after signature verification so it cannot be triggered by unauthenticated callers.
+- Orphaned send rows on Resend error/exception now deleted to prevent cap inflation.
+- LLM prompt input capped at 500 chars for missionText and 5 programs to prevent oversized prompts and injection via 990 XML content.
+- ProPublica filter endpoints that return 500 fall back to keyword-only search.
+- EIN normalized to string for consistent `inArray` lookups.
+- React list key warning in SentTable.
+- Setup wizard ProPublica and draft generation steps made non-fatal.
+- drizzle-kit 0.31+ removed `--accept-data-loss` flag.
+
 ## [0.1.0.0] - 2026-04-26
 
 ### Added

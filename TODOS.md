@@ -51,3 +51,16 @@ secret to leak. Auto-expiry adds defense in depth — important if you ever shar
 or run it on multiple machines.
 **Start:** First time you share the extension OR install it on a second machine.
 **Depends on:** none (additive to existing `api_tokens` schema).
+
+## Weekly send cap race condition (Known edge case, post-launch fix)
+`sendDraft()` reads the weekly count then inserts — two concurrent sends could both see count < 50 and both go through, overshooting the cap by N concurrent callers. For a solo personal tool the race window is ~1ms with near-zero practical risk.
+**Fix:** Wrap count check + insert in a serializable transaction, or use a DB-level counter.
+**Start:** If cap ever fires unexpectedly during normal solo use (would indicate a retry burst).
+
+## EIN format validation before 990 fetch (Defense in depth)
+`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment with no format check before passing to ProPublica and constructing the XML fetch URL. Add `if (!/^\d{2}-?\d{7}$/.test(ein))` guard at the route handler entry point.
+**Start:** Before the extension is shared or the app gets any public-facing traffic.
+
+## Integration test suite (Post-launch, after Neon dev branch is configured)
+API routes and service functions (webhook handlers, send cap logic, draft generation cap) are currently untested at the integration level. Unit tests cover pure logic (classifier, CSV, 990 parser, webhook verify). Full coverage requires a Neon dev branch for a test DB.
+**Start:** After Neon dev branch is set up per the plan's dev environment guidance.
