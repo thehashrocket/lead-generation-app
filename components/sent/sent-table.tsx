@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,8 +72,8 @@ export function SentTable({ rows }: { rows: SentRow[] }) {
       </TableHeader>
       <TableBody>
         {rows.map((row) => (
-          <>
-            <TableRow key={row.sendId} className="text-sm">
+          <React.Fragment key={row.sendId}>
+            <TableRow className="text-sm">
               <TableCell>
                 {row.replyId && (
                   <Button
@@ -123,7 +123,7 @@ export function SentTable({ rows }: { rows: SentRow[] }) {
                 </TableCell>
               </TableRow>
             )}
-          </>
+          </React.Fragment>
         ))}
       </TableBody>
     </Table>
