@@ -37,7 +37,12 @@ export async function generateDraft(orgCtx: OrgContext): Promise<GenerateResult>
   }
 
   const systemPrompt = buildSystemPrompt();
-  const userContent = JSON.stringify(orgCtx);
+  const safeCtx = {
+    ...orgCtx,
+    missionText: orgCtx.missionText?.slice(0, 500) ?? null,
+    programs: orgCtx.programs?.slice(0, 5),
+  };
+  const userContent = JSON.stringify(safeCtx);
 
   let result: Awaited<ReturnType<typeof generateText>>;
   let model = LLM_MODEL;

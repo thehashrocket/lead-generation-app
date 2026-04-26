@@ -35,21 +35,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const eventId = svixId;
 
-  const existing = await db
-    .select({ id: webhookEvents.id })
-    .from(webhookEvents)
-    .where(eq(webhookEvents.eventId, eventId))
-    .limit(1);
-  if (existing.length > 0) {
+  // Idempotency: use onConflictDoNothing to handle concurrent duplicate deliveries safely
+  const inserted = await db
+    .insert(webhookEvents)
+    .values({ eventId, eventType: "inbound", payload, signatureVerified: true })
+    .onConflictDoNothing()
+    .returning({ id: webhookEvents.id });
+  if (inserted.length === 0) {
     return NextResponse.json({ status: "duplicate" });
   }
-
-  await db.insert(webhookEvents).values({
-    eventId,
-    eventType: "inbound",
-    payload,
-    signatureVerified: true,
-  });
 
   // Extract VERP token from the To: address (replies+<token>@replies.volunteerready.org)
   const toAddress = String(payload.to ?? "");

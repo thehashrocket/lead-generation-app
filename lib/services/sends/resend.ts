@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { contacts, drafts, forwardLog, orgs, sends, suppressions } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { Resend } from "resend";
-import { and, count, eq, gt, isNull, or } from "drizzle-orm";
+import { and, count, eq, gt, or } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 const resend = new Resend(env.RESEND_API_KEY);
@@ -56,6 +56,7 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
     });
 
     if (result.error) {
+      await db.delete(sends).where(eq(sends.id, send.id));
       return { ok: false, error: result.error.message, code: "provider_error" };
     }
 

@@ -28,22 +28,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const eventId = svixId;
   const eventType = String(payload.type ?? "unknown");
 
-  // Idempotency: skip already-processed events
-  const existing = await db
-    .select({ id: webhookEvents.id })
-    .from(webhookEvents)
-    .where(eq(webhookEvents.eventId, eventId))
-    .limit(1);
-  if (existing.length > 0) {
+  // Idempotency: use onConflictDoNothing to handle concurrent duplicate deliveries safely
+  const inserted = await db
+    .insert(webhookEvents)
+    .values({ eventId, eventType, payload, signatureVerified: true })
+    .onConflictDoNothing()
+    .returning({ id: webhookEvents.id });
+  if (inserted.length === 0) {
     return NextResponse.json({ status: "duplicate" });
   }
-
-  await db.insert(webhookEvents).values({
-    eventId,
-    eventType,
-    payload,
-    signatureVerified: true,
-  });
 
   const data = payload.data as { email_id?: string; to?: string | string[] } | undefined;
   const resendMessageId = String(data?.email_id ?? "");
