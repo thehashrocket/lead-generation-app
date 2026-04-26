@@ -68,6 +68,7 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
 
     return { ok: true, sendId: send.id, resendMessageId };
   } catch (err) {
+    await db.delete(sends).where(eq(sends.id, send.id));
     return { ok: false, error: String(err), code: "provider_error" };
   }
 }

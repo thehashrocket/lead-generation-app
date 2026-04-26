@@ -12,18 +12,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const svixTimestamp = req.headers.get("svix-timestamp") ?? "";
   const svixSignature = req.headers.get("svix-signature") ?? "";
 
-  // Loop prevention: auto-forwarded replies come back here
-  const autoForwarded = req.headers.get("x-auto-forwarded");
-  if (autoForwarded === "volunteerready") {
-    return NextResponse.json({ status: "loop_blocked" });
-  }
-
   const rawBody = await req.text();
 
   const verified = verifyResendSignature(rawBody, svixId, svixTimestamp, svixSignature);
   if (!verified) {
     logger.warn({ event: "inbound_sig_mismatch" }, "Inbound webhook signature invalid");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Loop prevention: check after signature verify so the header can't be forged by unauthenticated callers
+  const autoForwarded = req.headers.get("x-auto-forwarded");
+  if (autoForwarded === "volunteerready") {
+    return NextResponse.json({ status: "loop_blocked" });
   }
 
   let payload: Record<string, unknown>;
