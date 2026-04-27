@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { drafts, orgs } from "@/lib/db/schema";
+import { contacts, drafts, orgs } from "@/lib/db/schema";
 import { requireWebSession } from "@/lib/auth/session";
 import { generateDraft } from "@/lib/services/drafts/generate";
 import { logger } from "@/lib/logger";
@@ -22,11 +22,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const { orgId, ein } = parsed.data;
 
-  const [org] = await db
-    .select()
-    .from(orgs)
-    .where(eq(orgs.ein, ein))
-    .limit(1);
+  const [[org], existingContact] = await Promise.all([
+    db.select().from(orgs).where(eq(orgs.ein, ein)).limit(1),
+    db
+      .select({ email: contacts.email, emailConfidence: contacts.emailConfidence })
+      .from(contacts)
+      .where(eq(contacts.orgId, orgId))
+      .limit(1),
+  ]);
 
   if (!org) return NextResponse.json({ ok: false, error: "Org not found" }, { status: 404 });
 
@@ -71,5 +74,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     body: result.body,
     model: result.model,
     promptVersion: PROMPT_VERSION,
+    toEmail: existingContact[0]?.email ?? null,
+    emailConfidence: existingContact[0]?.emailConfidence ?? null,
   });
 }
