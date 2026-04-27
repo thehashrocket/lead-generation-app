@@ -41,6 +41,9 @@ removes ProPublica live-API dependency from the search hot path.
 **Context:** Codex outside voice flagged ProPublica live + 24h cache as fragile at scale.
 At 50 emails/week with manual selection, the current approach is fine. Re-evaluate if outreach
 volume grows or you want keyword search across mission text.
+**Known limitation:** Client-side post-filtering (fix-ntee-code-filter) means filtered
+searches only see ProPublica page 1 (≤25 orgs). Sparse sub-codes like D20 may have more
+matches on later pages that are invisible until the corpus is built.
 **Start:** When sustained outreach exceeds 100 sends/week OR you find yourself wanting
 "search by keyword in mission" and ProPublica's UI doesn't cut it.
 

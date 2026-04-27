@@ -51,12 +51,7 @@ async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<Sear
       next: { revalidate: 0 },
     });
 
-  let res = await doFetch(buildUrl(true));
-
-  // ProPublica's filter endpoints are intermittently broken — fall back to keyword-only
-  if (res.status === 500 && (params.nteeCode || params.state)) {
-    res = await doFetch(buildUrl(false));
-  }
+  const res = await doFetch(buildUrl(true));
 
   if (res.status === 429) throw new RateLimitError("ProPublica rate limit hit");
   if (!res.ok) throw new Error(`ProPublica error: ${res.status}`);
@@ -110,6 +105,17 @@ export async function searchOrgs(params: ProPublicaSearchParams): Promise<Search
 export async function getOrgByEin(ein: string) {
   const [org] = await db.select().from(orgs).where(eq(orgs.ein, ein)).limit(1);
   return org ?? null;
+}
+
+export function applyOrganizationFilters(
+  organizations: ProPublicaOrg[],
+  filters: { nteeCode?: string; state?: string },
+): ProPublicaOrg[] {
+  return organizations.filter(
+    (o) =>
+      (!filters.nteeCode || o.ntee_code?.startsWith(filters.nteeCode) === true) &&
+      (!filters.state || o.state === filters.state),
+  );
 }
 
 export class RateLimitError extends Error {

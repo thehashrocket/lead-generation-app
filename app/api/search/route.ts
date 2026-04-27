@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
-import { searchOrgs, RateLimitError } from "@/lib/services/orgs/propublica";
+import { searchOrgs, applyOrganizationFilters, RateLimitError } from "@/lib/services/orgs/propublica";
 import { requireWebSession } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
 import { and, eq, ilike, inArray, isNotNull, sql } from "drizzle-orm";
@@ -20,7 +20,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const data = await searchOrgs({ q, nteeCode, state, page, minRevenue, maxRevenue });
 
-    const eins = data.organizations.map((o) => o.ein);
+    // ProPublica's ntee[] and state[] filters are unreliable — post-filter to guarantee correctness
+    const filtered = applyOrganizationFilters(data.organizations, { nteeCode, state });
+
+    const eins = filtered.map((o) => o.ein);
     const cached = eins.length > 0
       ? await db.select({ ein: orgs.ein, id: orgs.id, missionText: orgs.missionText })
           .from(orgs)
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const cachedMap = new Map(cached.map((c) => [c.ein, c]));
 
-    const organizations = data.organizations.map((o) => ({
+    const organizations = filtered.map((o) => ({
       id: cachedMap.get(o.ein)?.id ?? o.ein,
       ein: o.ein,
       name: o.name,
@@ -42,8 +45,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       organizations,
-      total_results: data.total_results,
-      num_pages: data.num_pages,
+      total_results: organizations.length,
+      num_pages: 1,
       cur_page: data.cur_page,
     });
   } catch (err) {

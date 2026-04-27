@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2.3] - 2026-04-27
+
+### Fixed
+- NTEE code filter now returns only matching organizations. Two compounding bugs caused unrelated orgs to appear in filtered searches: (1) a silent retry on ProPublica 500 errors stripped all filters and returned unfiltered results, and (2) ProPublica's `ntee[]` API param is unreliable. Fixed by removing the retry and adding client-side post-filtering in `applyOrganizationFilters()`. Handles both sub-codes ("D20") and major-group letters ("P", "K") via prefix match.
+- `total_results` and `num_pages` in search responses now reflect the post-filter count instead of ProPublica's raw count, preventing misleading "showing 8 of 847" UI states.
+
 ## [0.2.2.2] - 2026-04-27
 
 ### Security
