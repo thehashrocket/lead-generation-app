@@ -14,6 +14,7 @@ export const env = createEnv({
     RESEND_WEBHOOK_SECRET: z.string().min(1),
     RESEND_FROM_EMAIL: z.string().email().default("jason@volunteerready.org"),
     RESEND_REPLY_TO_DOMAIN: z.string().default("replies.volunteerready.org"),
+    HUNTER_API_KEY: z.string().min(1).optional(),
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
   runtimeEnv: {
@@ -25,6 +26,7 @@ export const env = createEnv({
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
     RESEND_REPLY_TO_DOMAIN: process.env.RESEND_REPLY_TO_DOMAIN,
+    HUNTER_API_KEY: process.env.HUNTER_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
