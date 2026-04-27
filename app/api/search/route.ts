@@ -17,6 +17,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const minRevenue = url.searchParams.get("minRevenue") ? Number(url.searchParams.get("minRevenue")) : undefined;
   const maxRevenue = url.searchParams.get("maxRevenue") ? Number(url.searchParams.get("maxRevenue")) : undefined;
 
+  if (!q) {
+    return NextResponse.json({ error: "q is required" }, { status: 400 });
+  }
+
   try {
     const data = await searchOrgs({ q, nteeCode, state, page, minRevenue, maxRevenue });
 
@@ -58,7 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     logger.warn({ event: "search_propublica_down", err: String(err) });
     const conditions = [isNotNull(orgs.cachedAt)];
     if (q) conditions.push(ilike(orgs.name, `%${q}%`));
-    if (nteeCode) conditions.push(eq(orgs.nteeCode, nteeCode));
+    if (nteeCode) conditions.push(ilike(orgs.nteeCode, nteeCode + "%"));
     if (state) conditions.push(eq(orgs.state, state));
     if (minRevenue != null) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) >= ${minRevenue}`);
     if (maxRevenue != null) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) <= ${maxRevenue}`);
