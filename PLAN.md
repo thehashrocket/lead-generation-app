@@ -615,11 +615,13 @@ Three endpoints sharing a single `streamCsv(rows, columns)` helper in `lib/csv.t
 
 UI: "Export CSV" button in each view's header. Empty result set produces header-only CSV.
 
-### Auth (replaces D6 from earlier review pass)
+### Auth (replaces D6 from earlier review pass, revised in Eng Review Pass 3)
 
-**Vercel Authentication** (built-in deployment password protection) replaces homemade `/login` + middleware + Upstash rate limit + lockout entirely. Single env-var password configured in Vercel Dashboard. Brute-force protection at the edge.
+~~**Vercel Authentication** (built-in deployment password protection) replaces homemade `/login` + middleware + Upstash rate limit + lockout entirely.~~
 
-The Chrome extension's bearer token to `/api/contacts` is a separate auth channel (not gated by Vercel Authentication) and keeps working.
+**Reverted (Eng Review Pass 3, D1):** Vercel Authentication gates ALL HTTP requests to the deployment — including `POST /api/contacts` (Chrome extension) and `POST /api/webhooks/resend/*` (Resend inbound webhooks). Both callers would be blocked before the Next.js route handlers run.
+
+**Decision:** Next.js middleware password check — protect web UI routes (`/`, `/sent`, `/settings`), exclude all `/api/*` routes explicitly. `APP_PASSWORD` + `APP_SECRET` remain in `.env.example` as originally specified in the DX review. Implementation: `middleware.ts` at project root, `matcher` excludes `/api/:path*`. Session cookie via `iron-session`. The extension and webhooks require no bypass headers; they authenticate via their own channels (bearer token and Svix signature respectively).
 
 ### Schema Changes (binding)
 
@@ -788,14 +790,16 @@ None.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | - | - |
 | Outside Voice | `/codex` | Independent 2nd opinion | 3 | issues_found | 14 findings (pass 2), 13 incorporated |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | CLEAR (PLAN) | Pass 2: 13 decisions + Resend pivot + CSV; 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | CLEAR (PLAN) | Pass 3: 1 issue (D1 middleware revert), 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 3/10 -> 8/10, 14 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | score: 2/10 -> 8.4/10, 24 decisions |
 
-**OUTSIDE VOICE (Codex gpt-5.4, 2026-04-26):** 14 findings on revised plan after Resend pivot. 10 auto-incorporated as critical hardening (MX subdomain, suppression table, outbound idempotency, conversation thread state, reply classifier, PII redaction, loopback smoke test, Postgres-backed circuit breaker, Reply-To preservation in forward, extension origin check). 3 user decisions resolved (D15 auth simplified to Vercel Authentication, D16 990 kept, D17 scope kept). 1 disagreement (Codex argued search data model fragile; reviewer holds at 50/week + manual selection scale).
+**OUTSIDE VOICE (Codex gpt-5.4, 2026-04-26):** 14 findings on revised plan after Resend pivot. 10 auto-incorporated as critical hardening (MX subdomain, suppression table, outbound idempotency, conversation thread state, reply classifier, PII redaction, loopback smoke test, Postgres-backed circuit breaker, Reply-To preservation in forward, extension origin check). 3 user decisions resolved (D15 auth simplified to Vercel Authentication — **REVERTED in Pass 3**, D16 990 kept, D17 scope kept). 1 disagreement (Codex argued search data model fragile; reviewer holds at 50/week + manual selection scale).
 
 **CROSS-MODEL:** Codex and reviewer agree on all 10 auto-incorporated items. Reviewer disagrees on Codex #7 (search corpus) - acceptable risk at current scale. Codex #8 (990 schedule trap) flagged but user kept (D16-A) acknowledging risk.
 
+**ENG REVIEW PASS 3 (2026-04-27):** 1 issue found: D15 (Vercel Authentication) blocks Chrome extension bearer token calls and Resend webhook delivery — all routes are gated by Vercel deployment protection. Reverted to Next.js middleware (`middleware.ts`) with matcher excluding `/api/*`. 5 new middleware auth test paths added to test plan artifact.
+
 **UNRESOLVED:** 0
 
-**VERDICT:** ENG REVIEW (PASS 2) + DESIGN REVIEW + DX REVIEW CLEAR - ready to implement. Run `/ship` when done with each weekly stage.
+**VERDICT:** ENG REVIEW (PASS 3) + DESIGN REVIEW + DX REVIEW CLEAR - ready to implement. First action: NTEE code verification (30 min, before any code). Then scaffold + `bun run setup` wizard.
