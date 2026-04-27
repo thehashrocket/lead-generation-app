@@ -66,6 +66,7 @@ Deploy to Vercel. Enable **Vercel Authentication** in the dashboard for password
 
 Post-deploy checklist:
 - Set `DATABASE_URL` to the Neon **main** branch in the Vercel dashboard (not in `.env.local`)
-- Update Resend inbound webhook URL to `https://<your-domain>/api/webhooks/resend-inbound`
-- Update Resend delivery webhook URL to `https://<your-domain>/api/webhooks/resend-delivery`
+- Add MX record `inbound.resend.com` (priority 10) for your replies subdomain (e.g. `replies.yourdomain.org`), then set the Resend inbound endpoint to `https://<your-domain>/api/webhooks/resend/inbound`
+- Create a Resend webhook subscribed to `email.delivered`, `email.bounced`, and `email.complained` pointed at `https://<your-domain>/api/webhooks/resend/events`
+- Copy the webhook signing secret from Resend and set it as `RESEND_WEBHOOK_SECRET`
 - Verify weekly send cap in Settings before first production run
