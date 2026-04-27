@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1.0] - 2026-04-27
+
+### Security
+- Login route now uses `crypto.timingSafeEqual` for password comparison, preventing timing-based brute-force attacks.
+- Session module validates `APP_SECRET` at request time with a clear error message if missing or too short.
+- Session cookie now explicitly sets `secure: true` in production.
+
+### Changed
+- Replaced Vercel Authentication (deployment-level protection that blocked all HTTP, including the Chrome extension and Resend webhooks) with Next.js middleware (`proxy.ts`) using iron-session encrypted session cookies. Web routes (`/`, `/sent`, `/settings`) are protected; all `/api/*` routes are excluded and authenticate via their own channels (bearer token, Svix signature).
+- Login route (`/api/auth/login`) now works in production via iron-session — previously returned 404 in production.
+- `APP_PASSWORD` and `APP_SECRET` added to T3 Env validation and `bun run setup` wizard.
+
+### Added
+- Middleware auth test suite covering authenticated pass-through, unauthenticated redirect, API route bypass, webhook bypass, and login page bypass.
+- Login route tests covering invalid body, missing password, wrong password, and correct password flows.
+
 ## [0.2.0.1] - 2026-04-27
 
 ### Added

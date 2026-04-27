@@ -1,36 +1,28 @@
+import { getIronSession } from "iron-session";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { sessionOptions, type SessionData } from "@/lib/auth/session";
 
-// Vercel Authentication handles prod. This proxy gate protects local dev.
-// In production, set VERCEL_AUTHENTICATION=1 in the Vercel dashboard instead.
-export function proxy(req: NextRequest): NextResponse {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
 
-  // Public: login page, auth API, webhooks, health
-  if (
-    pathname === "/login" ||
-    pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/api/webhooks/") ||
-    pathname.startsWith("/api/contacts") ||
-    pathname.startsWith("/api/health")
-  ) {
+  // All /api/* routes are public — authenticated via their own mechanisms
+  // (bearer token for /api/contacts, Svix signature for /api/webhooks/*, etc.)
+  if (pathname === "/login" || pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  // In production Vercel Authentication handles everything — skip cookie check
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.next();
-  }
+  const res = NextResponse.next();
+  const session = await getIronSession<SessionData>(req, res, sessionOptions);
 
-  const session = req.cookies.get("__session")?.value;
-  if (!session) {
+  if (!session.authenticated) {
     const login = req.nextUrl.clone();
     login.pathname = "/login";
     login.search = "";
     return NextResponse.redirect(login);
   }
 
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {

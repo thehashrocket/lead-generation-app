@@ -12,6 +12,7 @@ import { z } from "zod";
 // AI Gateway auth: run `vercel env pull .env.local` — OIDC token is injected automatically
 const REQUIRED_VARS = [
   "APP_SECRET",
+  "APP_PASSWORD",
   "DATABASE_URL",
   "RESEND_API_KEY",
   "RESEND_WEBHOOK_SECRET",
