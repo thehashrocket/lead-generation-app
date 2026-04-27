@@ -9,7 +9,13 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ ein: string }> },
 ): Promise<NextResponse> {
-  const { ein } = await params;
+  const { ein: rawEin } = await params;
+
+  if (!/^\d{2}-?\d{7}$/.test(rawEin)) {
+    return NextResponse.json({ error: "Invalid EIN format" }, { status: 400 });
+  }
+  // Normalize to no-hyphen form to match how ProPublica returns EINs (stored without hyphen)
+  const ein = rawEin.replace("-", "");
 
   const [org] = await db.select().from(orgs).where(eq(orgs.ein, ein)).limit(1);
   if (!org) return NextResponse.json({ missionText: null, programs: [], namedContact: null });

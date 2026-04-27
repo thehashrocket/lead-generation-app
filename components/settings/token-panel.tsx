@@ -6,8 +6,13 @@ import { toast } from "sonner";
 import { Copy, RefreshCw } from "lucide-react";
 
 type Props = {
-  token: { id: string; name: string; createdAt: Date | null; lastUsedAt: Date | null } | null;
+  token: { id: string; name: string; createdAt: Date | null; expiresAt: Date | null; lastUsedAt: Date | null } | null;
 };
+
+function daysUntilExpiry(expiresAt: Date | null): number | null {
+  if (!expiresAt) return null;
+  return Math.floor((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
 
 export function TokenPanel({ token: initialToken }: Props) {
   const [token, setToken] = useState(initialToken);
@@ -44,7 +49,26 @@ export function TokenPanel({ token: initialToken }: Props) {
             <span className="font-medium">{token.name}</span> — created{" "}
             {token.createdAt?.toLocaleDateString()}
             {token.lastUsedAt && `, last used ${token.lastUsedAt.toLocaleDateString()}`}
+            {token.expiresAt && `, expires ${new Date(token.expiresAt).toLocaleDateString()}`}
           </p>
+          {(() => {
+            const days = daysUntilExpiry(token.expiresAt);
+            if (days !== null && days <= 10) {
+              return (
+                <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                  Token expires in {days} day{days !== 1 ? "s" : ""}. Regenerate now to avoid losing extension access.
+                </div>
+              );
+            }
+            if (days !== null && days <= 80) {
+              return (
+                <div className="rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  Token expires in {days} days. Consider regenerating soon.
+                </div>
+              );
+            }
+            return null;
+          })()}
           {newTokenValue && (
             <div className="rounded border border-amber-200 bg-amber-50 p-3">
               <p className="text-xs text-amber-800 mb-2 font-medium">

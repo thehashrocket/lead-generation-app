@@ -1,9 +1,14 @@
 import { db } from "@/lib/db";
 import { contacts, orgs } from "@/lib/db/schema";
+import { requireWebSession } from "@/lib/auth/session";
 import { buildCsvResponse } from "@/lib/csv";
 import { eq } from "drizzle-orm";
+import { NextRequest } from "next/server";
 
-export async function GET(): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
+  const unauth = await requireWebSession(req);
+  if (unauth) return unauth;
+
   const rows = await db
     .select({
       orgName: orgs.name,

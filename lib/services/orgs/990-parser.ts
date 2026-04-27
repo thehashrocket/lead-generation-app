@@ -81,7 +81,7 @@ export function parse990Xml(xmlText: string): Parsed990 {
       for (const mp of MISSION_PATHS) {
         if (fullPath === mp && currentText.trim()) {
           const val = currentText.trim();
-          if (val.length < 5000 && isPrintableAscii(val)) {
+          if (val.length < 5000 && isPrintableText(val)) {
             missionText = val;
             pathMatched = mp.split(".").pop() ?? mp;
           }
@@ -136,6 +136,7 @@ function findLeadOfficer(officers: OfficerCandidate[]): OfficerCandidate | null 
   return officers[0] ?? null;
 }
 
-function isPrintableAscii(str: string): boolean {
-  return /^[\x20-\x7E\r\n\t]+$/.test(str);
+function isPrintableText(str: string): boolean {
+  // Allow all Unicode printable text; reject only binary control chars (NUL–BEL etc.)
+  return !/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(str);
 }

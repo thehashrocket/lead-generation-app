@@ -33,7 +33,7 @@ async function getPromptPerf() {
 
 async function getToken() {
   const [token] = await db
-    .select({ id: apiTokens.id, name: apiTokens.name, createdAt: apiTokens.createdAt, lastUsedAt: apiTokens.lastUsedAt })
+    .select({ id: apiTokens.id, name: apiTokens.name, createdAt: apiTokens.createdAt, expiresAt: apiTokens.expiresAt, lastUsedAt: apiTokens.lastUsedAt })
     .from(apiTokens)
     .orderBy(desc(apiTokens.createdAt))
     .limit(1);

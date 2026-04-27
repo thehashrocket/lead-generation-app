@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
 import { searchOrgs, RateLimitError } from "@/lib/services/orgs/propublica";
 import { logger } from "@/lib/logger";
-import { inArray } from "drizzle-orm";
+import { and, eq, gte, ilike, inArray, isNotNull, lte } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -11,11 +11,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const nteeCode = url.searchParams.get("nteeCode") ?? undefined;
   const state = url.searchParams.get("state") ?? undefined;
   const page = Number(url.searchParams.get("page") ?? "0");
+  const minRevenue = url.searchParams.get("minRevenue") ? Number(url.searchParams.get("minRevenue")) : undefined;
+  const maxRevenue = url.searchParams.get("maxRevenue") ? Number(url.searchParams.get("maxRevenue")) : undefined;
 
   try {
-    const data = await searchOrgs({ q, nteeCode, state, page });
+    const data = await searchOrgs({ q, nteeCode, state, page, minRevenue, maxRevenue });
 
-    // Map to SearchResultOrg shape — join with DB to get cached mission text
     const eins = data.organizations.map((o) => o.ein);
     const cached = eins.length > 0
       ? await db.select({ ein: orgs.ein, id: orgs.id, missionText: orgs.missionText })
@@ -46,7 +47,43 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (err instanceof RateLimitError) {
       return NextResponse.json({ error: "rate_limited" }, { status: 429 });
     }
-    logger.error({ event: "search_error", err: String(err) });
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+
+    // ProPublica unreachable — serve stale cached results so the tool stays usable
+    logger.warn({ event: "search_propublica_down", err: String(err) });
+    const conditions = [isNotNull(orgs.cachedAt)];
+    if (q) conditions.push(ilike(orgs.name, `%${q}%`));
+    if (nteeCode) conditions.push(eq(orgs.nteeCode, nteeCode));
+    if (state) conditions.push(eq(orgs.state, state));
+    if (minRevenue != null) conditions.push(gte(orgs.totalRevenue, String(minRevenue)));
+    if (maxRevenue != null) conditions.push(lte(orgs.totalRevenue, String(maxRevenue)));
+
+    const staleRows = await db
+      .select()
+      .from(orgs)
+      .where(and(...conditions))
+      .limit(25);
+
+    if (staleRows.length === 0) {
+      return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    }
+
+    const organizations = staleRows.map((o) => ({
+      id: o.id,
+      ein: o.ein,
+      name: o.name,
+      nteeCode: o.nteeCode,
+      state: o.state,
+      totalRevenue: o.totalRevenue,
+      propublicaUrl: o.propublicaUrl,
+      missionText: o.missionText,
+    }));
+
+    return NextResponse.json({
+      organizations,
+      total_results: organizations.length,
+      num_pages: 1,
+      cur_page: 0,
+      stale: true,
+    });
   }
 }

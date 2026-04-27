@@ -13,6 +13,9 @@ const US_STATES = [
   "VA","WA","WV","WI","WY","DC",
 ];
 
+// TODO: Verify these NTEE codes against the IRS EO Business Master File before first use.
+// Current codes are best-guesses. Wrong codes = no useful results.
+// Reference: https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf
 const NTEE_CODES = [
   { code: "D20", label: "D20 — Animal Protection & Welfare" },
   { code: "T", label: "T — Philanthropy & Voluntarism" },
@@ -23,7 +26,7 @@ const NTEE_CODES = [
 ];
 
 export function SearchFilters() {
-  const { q, nteeCode, state, setQ, setNteeCode, setState, triggerSearch } =
+  const { q, nteeCode, state, minRevenue, maxRevenue, setQ, setNteeCode, setState, setMinRevenue, setMaxRevenue, triggerSearch } =
     useSearchFiltersStore();
 
   return (
@@ -73,6 +76,28 @@ export function SearchFilters() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-500">Revenue range ($)</label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Min"
+            value={minRevenue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinRevenue(e.target.value)}
+            className="h-8 w-1/2 text-sm"
+            min={0}
+          />
+          <Input
+            type="number"
+            placeholder="Max"
+            value={maxRevenue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaxRevenue(e.target.value)}
+            className="h-8 w-1/2 text-sm"
+            min={0}
+          />
+        </div>
       </div>
 
       <Button size="sm" onClick={triggerSearch} className="w-full gap-2">
