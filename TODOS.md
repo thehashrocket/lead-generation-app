@@ -53,6 +53,15 @@ volume grows or you want keyword search across mission text.
 ~~`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment...~~
 **Resolved:** Guard added at route entry in `app/api/orgs/[ein]/enrich/route.ts`.
 
+## Unprotected API routes (P1 — fix before public exposure)
+`/api/drafts/[id]` (PATCH), `/api/drafts/generate` (POST), and `/api/orgs/[ein]/enrich` (GET) have no auth — not bearer token, not session. They pass through the proxy's `/api/*` bypass and rely on "their own mechanisms" per the proxy comment, but have none.
+- Any caller who can guess a draft UUID can overwrite `subject`, `body`, and `toEmail`.
+- Any caller can trigger AI draft generation (burning API quota).
+- Any caller can trigger 990 XML fetches and write enrichment data to the DB.
+**Fix:** Add `requireWebSession()` guard to these three route handlers (same pattern as `/api/sends`, `/api/export/*`).
+**Context:** Flagged by adversarial review during v0.2.2.1 ship. Low immediate risk (solo tool, no public URL), but must fix before sharing the URL or adding more users.
+**Start:** Next engineering pass.
+
 ## Integration test suite (Post-launch, after Neon dev branch is configured)
 API routes and service functions (webhook handlers, send cap logic, draft generation cap) are currently untested at the integration level. Unit tests cover pure logic (classifier, CSV, 990 parser, webhook verify). Full coverage requires a Neon dev branch for a test DB.
 **Start:** After Neon dev branch is set up per the plan's dev environment guidance.
