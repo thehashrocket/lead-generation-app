@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2.2] - 2026-04-27
+
+### Security
+- Three API routes that were missing session authentication can now only be called by a logged-in user: `PATCH /api/drafts/[id]` (draft editing), `POST /api/drafts/generate` (AI draft generation), and `GET /api/orgs/[ein]/enrich` (990 XML fetch). Previously any caller who could guess a draft UUID could overwrite the recipient, subject, and body, trigger AI generation (burning quota), or write enrichment data to the database.
+
+### Changed
+- Hunter.io email acquisition spec finalized: free tier confirmed at 50 credits/month (matches the 50 emails/week send cap). API integration spec written in TODOS.md — ready to build.
+
 ## [0.2.2.1] - 2026-04-27
 
 ### Fixed
