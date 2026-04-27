@@ -13,16 +13,17 @@ const US_STATES = [
   "VA","WA","WV","WI","WY","DC",
 ];
 
-// TODO: Verify these NTEE codes against the IRS EO Business Master File before first use.
-// Current codes are best-guesses. Wrong codes = no useful results.
-// Reference: https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf
 const NTEE_CODES = [
-  { code: "D20", label: "D20 — Animal Protection & Welfare" },
-  { code: "T", label: "T — Philanthropy & Voluntarism" },
+  { code: "D20", label: "D20 — Animal Rescues & Shelters" },
   { code: "P", label: "P — Human Services" },
+  { code: "K", label: "K — Food Banks & Pantries" },
+  { code: "L", label: "L — Housing & Shelters" },
   { code: "O", label: "O — Youth Development" },
+  { code: "N", label: "N — Recreation & Sports Leagues" },
   { code: "B", label: "B — Education" },
   { code: "E", label: "E — Health" },
+  { code: "C", label: "C — Environment & Conservation" },
+  { code: "T", label: "T — Philanthropy & Voluntarism" },
 ];
 
 export function SearchFilters() {

@@ -12,12 +12,9 @@ Without email, the contact record is incomplete and outreach requires a manual l
 **Resolved:** Pivoted to Resend.com with `volunteerready.org` already warmed and live.
 SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5).
 
-## NTEE code verification (Before Day 1 of build)
-Spend 30 minutes on the IRS EO Business Master File to verify exact NTEE codes for target orgs.
-Design doc best guesses: D20 (animal welfare), T-series (voluntarism), P-series (human services), O (youth).
-NTEE is the core search primitive — wrong codes = useless results from day 1.
-**Reference:** https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf
-**Start:** Before writing any ProPublica client code. Hardcode the verified code list in the search filter UI.
+## ~~NTEE code verification~~ (RESOLVED 2026-04-27)
+~~Spend 30 minutes on the IRS EO Business Master File...~~
+**Resolved:** Verified against IRS BMF export. Final list: D20 (Animal Rescues), P (Human Services), K (Food Banks), L (Housing/Shelters), O (Youth Dev), N (Recreation/Sports), B (Education), E (Health), C (Environment), T (Philanthropy/Voluntarism). Updated in `search-filters.tsx`.
 
 ## ~~Reply digest notification~~ (OBSOLETE 2026-04-26)
 ~~Slack push removed; daily digest deferred...~~
