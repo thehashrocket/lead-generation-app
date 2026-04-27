@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { apiTokens } from "@/lib/db/schema";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import crypto from "crypto";
 
 const TOKEN_TTL_DAYS = 90;
@@ -35,7 +35,7 @@ export async function validateApiToken(
   const [row] = await db
     .select({ id: apiTokens.id })
     .from(apiTokens)
-    .where(and(eq(apiTokens.tokenHash, hash), gt(apiTokens.expiresAt, new Date())))
+    .where(and(eq(apiTokens.tokenHash, hash), or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, new Date()))))
     .limit(1);
 
   if (!row) return false;

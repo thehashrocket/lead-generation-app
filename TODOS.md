@@ -44,9 +44,10 @@ volume grows or you want keyword search across mission text.
 ~~Add `expires_at` column to `api_tokens`...~~
 **Resolved:** `expires_at` migration generated (`0001_add_token_expires_at.sql`). `validateApiToken` rejects expired tokens. Settings page shows amber banner ≤80 days, red banner ≤10 days.
 
-## ~~Weekly send cap race condition~~ (RESOLVED 2026-04-27)
-~~`sendDraft()` reads the weekly count then inserts...~~
-**Resolved:** Cap check + insert now run inside a `isolationLevel: "serializable"` Drizzle transaction in `lib/services/sends/resend.ts`.
+## Weekly send cap race condition (Known edge case, post-launch fix)
+`sendDraft()` wraps the count check + insert in `db.transaction({ isolationLevel: "serializable" })`, but the project uses `drizzle-orm/neon-http` which silently no-ops transactions over HTTP — each statement is a separate round-trip with no isolation guarantee. The race is still open in practice.
+**Fix:** Switch to `drizzle-orm/neon-serverless` (WebSocket adapter) which supports real transactions, OR use an optimistic DB-level `UPDATE sends SET ... WHERE weekly_count < 50 RETURNING id` pattern.
+**Start:** If cap ever misfires during solo use (would indicate a retry burst). Near-zero risk for solo tool.
 
 ## ~~EIN format validation before 990 fetch~~ (RESOLVED 2026-04-27)
 ~~`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment...~~

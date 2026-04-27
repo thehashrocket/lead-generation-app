@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
 import { requireWebSession } from "@/lib/auth/session";
 import { buildCsvResponse } from "@/lib/csv";
-import { and, gte, ilike, lte, eq, isNotNull } from "drizzle-orm";
+import { and, ilike, eq, isNotNull, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -20,8 +20,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (q) conditions.push(ilike(orgs.name, `%${q}%`));
   if (nteeCode) conditions.push(eq(orgs.nteeCode, nteeCode));
   if (state) conditions.push(eq(orgs.state, state));
-  if (minRevenue) conditions.push(gte(orgs.totalRevenue, minRevenue));
-  if (maxRevenue) conditions.push(lte(orgs.totalRevenue, maxRevenue));
+  if (minRevenue) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) >= ${Number(minRevenue)}`);
+  if (maxRevenue) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) <= ${Number(maxRevenue)}`);
 
   const rows = await db
     .select({

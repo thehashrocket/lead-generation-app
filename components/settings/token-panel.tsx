@@ -53,6 +53,13 @@ export function TokenPanel({ token: initialToken }: Props) {
           </p>
           {(() => {
             const days = daysUntilExpiry(token.expiresAt);
+            if (days !== null && days <= 0) {
+              return (
+                <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+                  Token has expired. Regenerate to restore extension access.
+                </div>
+              );
+            }
             if (days !== null && days <= 10) {
               return (
                 <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800">

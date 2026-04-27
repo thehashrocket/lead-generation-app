@@ -1,11 +1,14 @@
 import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
 import { searchOrgs, RateLimitError } from "@/lib/services/orgs/propublica";
+import { requireWebSession } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
-import { and, eq, gte, ilike, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, eq, ilike, inArray, isNotNull, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  const unauth = await requireWebSession(req);
+  if (unauth) return unauth;
   const url = new URL(req.url);
   const q = url.searchParams.get("q") ?? undefined;
   const nteeCode = url.searchParams.get("nteeCode") ?? undefined;
@@ -54,8 +57,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (q) conditions.push(ilike(orgs.name, `%${q}%`));
     if (nteeCode) conditions.push(eq(orgs.nteeCode, nteeCode));
     if (state) conditions.push(eq(orgs.state, state));
-    if (minRevenue != null) conditions.push(gte(orgs.totalRevenue, String(minRevenue)));
-    if (maxRevenue != null) conditions.push(lte(orgs.totalRevenue, String(maxRevenue)));
+    if (minRevenue != null) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) >= ${minRevenue}`);
+    if (maxRevenue != null) conditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) <= ${maxRevenue}`);
 
     const staleRows = await db
       .select()
