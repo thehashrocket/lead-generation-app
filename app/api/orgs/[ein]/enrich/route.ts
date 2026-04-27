@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
+import { requireWebSession } from "@/lib/auth/session";
 import { fetch990Xml, parse990Xml } from "@/lib/services/orgs/990-parser";
 import { logger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
@@ -9,6 +10,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ ein: string }> },
 ): Promise<NextResponse> {
+  const unauth = await requireWebSession(_req);
+  if (unauth) return unauth;
+
   const { ein: rawEin } = await params;
 
   if (!/^\d{2}-?\d{7}$/.test(rawEin)) {

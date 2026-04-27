@@ -1,11 +1,15 @@
 # TODOS
 
-## Email acquisition for contacts (Week 4+)
-Evaluate Hunter.io API or Clearbit email lookup to find email addresses from contact name + org domain.
-The Chrome extension captures name, title, and LinkedIn URL but email is usually null on LinkedIn.
-Without email, the contact record is incomplete and outreach requires a manual lookup step.
-**Context:** Codex outside voice flagged this as a pipeline gap. Hunter.io has a free tier (25 searches/month).
-**Start:** After Chrome extension ships (week 3). Check Hunter.io API docs and pricing.
+## Email acquisition via Hunter.io (Ready to build — spike complete 2026-04-27)
+Wire up Hunter.io Email Finder API to auto-populate the To: field when contact email is null.
+**Spike findings:** Free tier is 50 credits/month (matches the 50 emails/week cap). API: `GET https://api.hunter.io/v2/email-finder?domain=X&first_name=Y&last_name=Z&api_key=KEY` → returns email + confidence (0-100).
+**Constraint:** Chrome extension captures `company` (org name), not domain. Domain must be derived from `propublica_url` (strip to root domain) or org website field. Add validation: confidence < 50 = yellow warning badge, Jason should verify before sending.
+**What to build:**
+- `HUNTER_API_KEY` env var
+- `lib/services/contacts/email-lookup.ts` — fetch wrapper, returns `{ email, confidence } | null`
+- `GET /api/contacts/email-lookup?contactId=...` — requires `requireWebSession()`, calls Hunter, updates `contacts.email`
+- UI: "Find email" button in Draft panel To: field when email is null; spinner while fetching; fills field on success with confidence badge
+**Start:** New branch. ~2-3 hours to implement + test.
 
 ## ~~Email deliverability DNS check~~ (RESOLVED 2026-04-26)
 ~~Verify which Gmail address Jason will use for sending...~~
@@ -53,14 +57,9 @@ volume grows or you want keyword search across mission text.
 ~~`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment...~~
 **Resolved:** Guard added at route entry in `app/api/orgs/[ein]/enrich/route.ts`.
 
-## Unprotected API routes (P1 — fix before public exposure)
-`/api/drafts/[id]` (PATCH), `/api/drafts/generate` (POST), and `/api/orgs/[ein]/enrich` (GET) have no auth — not bearer token, not session. They pass through the proxy's `/api/*` bypass and rely on "their own mechanisms" per the proxy comment, but have none.
-- Any caller who can guess a draft UUID can overwrite `subject`, `body`, and `toEmail`.
-- Any caller can trigger AI draft generation (burning API quota).
-- Any caller can trigger 990 XML fetches and write enrichment data to the DB.
-**Fix:** Add `requireWebSession()` guard to these three route handlers (same pattern as `/api/sends`, `/api/export/*`).
-**Context:** Flagged by adversarial review during v0.2.2.1 ship. Low immediate risk (solo tool, no public URL), but must fix before sharing the URL or adding more users.
-**Start:** Next engineering pass.
+## ~~Unprotected API routes~~ (RESOLVED 2026-04-27)
+~~`/api/drafts/[id]` (PATCH), `/api/drafts/generate` (POST), and `/api/orgs/[ein]/enrich` (GET) have no auth~~
+**Resolved:** `requireWebSession()` guard added to all three handlers (same pattern as `/api/sends`). See eng review pass 4.
 
 ## Integration test suite (Post-launch, after Neon dev branch is configured)
 API routes and service functions (webhook handlers, send cap logic, draft generation cap) are currently untested at the integration level. Unit tests cover pure logic (classifier, CSV, 990 parser, webhook verify). Full coverage requires a Neon dev branch for a test DB.

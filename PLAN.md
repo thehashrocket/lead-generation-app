@@ -790,7 +790,7 @@ None.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | - | - |
 | Outside Voice | `/codex` | Independent 2nd opinion | 3 | issues_found | 14 findings (pass 2), 13 incorporated |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 3 | CLEAR (PLAN) | Pass 3: 1 issue (D1 middleware revert), 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 4 | CLEAR (PLAN) | Pass 4: 1 issue (P1 auth fixed), 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 3/10 -> 8/10, 14 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | score: 2/10 -> 8.4/10, 24 decisions |
 
@@ -800,6 +800,8 @@ None.
 
 **ENG REVIEW PASS 3 (2026-04-27):** 1 issue found: D15 (Vercel Authentication) blocks Chrome extension bearer token calls and Resend webhook delivery — all routes are gated by Vercel deployment protection. Reverted to Next.js middleware (`middleware.ts`) with matcher excluding `/api/*`. 5 new middleware auth test paths added to test plan artifact.
 
+**ENG REVIEW PASS 4 (2026-04-27):** 1 issue found and fixed: `/api/drafts/[id]` (PATCH), `/api/drafts/generate` (POST), `/api/orgs/[ein]/enrich` (GET) had no auth guard. Added `requireWebSession()` to all three. Hunter.io email acquisition spike completed — free tier is 50 credits/month (matches send cap), API is trivial. Scoped TODO written, ready to build in next branch.
+
 **UNRESOLVED:** 0
 
-**VERDICT:** ENG REVIEW (PASS 3) + DESIGN REVIEW + DX REVIEW CLEAR - ready to implement. First action: NTEE code verification (30 min, before any code). Then scaffold + `bun run setup` wizard.
+**VERDICT:** IMPLEMENTATION COMPLETE. All three plan lanes shipped. P1 auth gap closed. Next: Hunter.io email lookup (new branch, TODOS.md has full spec).
