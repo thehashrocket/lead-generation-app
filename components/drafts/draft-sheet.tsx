@@ -14,28 +14,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { SearchResultOrg } from "@/components/search/types";
 import { Org990Panel } from "./org-990-panel";
-import { RefreshCw, Send } from "lucide-react";
+import { RefreshCw, Search, Send } from "lucide-react";
 
 type Props = {
   org: SearchResultOrg;
   onClose: () => void;
+  hunterEnabled?: boolean;
 };
 
 type DraftState =
   | { status: "idle" }
   | { status: "generating" }
   | { status: "ready"; draftId: string; subject: string; body: string; model: string; promptVersion: string }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; reason?: "cap_reached" };
 
 type SaveState = "saved" | "saving" | "failed" | "idle";
 
-export function DraftSheet({ org, onClose }: Props) {
+type HunterState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "done" }
+  | { status: "no_domain" }
+  | { status: "not_found" }
+  | { status: "quota_reached"; used: number; cap: number }
+  | { status: "error" };
+
+export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
   const [draft, setDraft] = useState<DraftState>({ status: "idle" });
   const [toEmail, setToEmail] = useState("");
+  const [emailConfidence, setEmailConfidence] = useState<number | null>(null);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [sending, setSending] = useState(false);
+  const [hunter, setHunter] = useState<HunterState>({ status: "idle" });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -52,7 +64,11 @@ export function DraftSheet({ org, onClose }: Props) {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setDraft({ status: "error", message: data.error ?? "Draft generation failed." });
+        setDraft({
+          status: "error",
+          message: data.error ?? "Draft generation failed.",
+          reason: data.capReached ? "cap_reached" : undefined,
+        });
         return;
       }
       setDraft({
@@ -65,6 +81,10 @@ export function DraftSheet({ org, onClose }: Props) {
       });
       setSubject(data.subject);
       setBody(data.body);
+      if (data.toEmail) {
+        setToEmail(data.toEmail);
+        setEmailConfidence(data.emailConfidence ?? null);
+      }
     } catch {
       setDraft({ status: "error", message: "Draft generation failed after 2 attempts." });
     }
@@ -103,6 +123,32 @@ export function DraftSheet({ org, onClose }: Props) {
     scheduleSave(subject, val);
   }
 
+  async function handleFindEmail() {
+    setHunter({ status: "loading" });
+    try {
+      const res = await fetch(`/api/contacts/email-lookup?orgId=${encodeURIComponent(org.id)}`);
+      const data = await res.json();
+
+      if (res.status === 402) {
+        setHunter({ status: "quota_reached", used: data.used ?? 50, cap: data.cap ?? 50 });
+        return;
+      }
+      if (!res.ok) {
+        setHunter({ status: "error" });
+        return;
+      }
+      if (!data.email) {
+        setHunter({ status: data.reason === "no_domain" ? "no_domain" : "not_found" });
+        return;
+      }
+      setToEmail(data.email);
+      setEmailConfidence(data.confidence ?? null);
+      setHunter({ status: "done" });
+    } catch {
+      setHunter({ status: "error" });
+    }
+  }
+
   async function handleSend() {
     if (draft.status !== "ready") return;
     if (!toEmail) {
@@ -135,7 +181,9 @@ export function DraftSheet({ org, onClose }: Props) {
     }
   }
 
-  const isCapReached = draft.status === "error" && draft.message.includes("cap");
+  const isCapReached = draft.status === "error" && draft.reason === "cap_reached";
+  const showHunterButton =
+    hunterEnabled && !toEmail && hunter.status !== "quota_reached";
 
   return (
     <Sheet open onOpenChange={(open: boolean) => !open && onClose()}>
@@ -158,15 +206,71 @@ export function DraftSheet({ org, onClose }: Props) {
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-500">To:</label>
-              <Input
-                placeholder="Enter recipient email"
-                value={toEmail}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setToEmail(e.target.value)}
-                className="h-8 text-sm"
-              />
-              {!toEmail && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter recipient email"
+                  value={toEmail}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setToEmail(e.target.value);
+                    setEmailConfidence(null);
+                  }}
+                  className="h-8 text-sm"
+                />
+                {showHunterButton && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5 text-xs"
+                    onClick={handleFindEmail}
+                    disabled={hunter.status === "loading"}
+                  >
+                    {hunter.status === "loading" ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Search className="h-3 w-3" />
+                    )}
+                    Find email
+                  </Button>
+                )}
+              </div>
+
+              {toEmail && emailConfidence !== null && (
+                <div className="flex items-center gap-1.5">
+                  <Badge
+                    variant="outline"
+                    className={
+                      emailConfidence >= 50
+                        ? "border-green-300 text-green-700 text-xs"
+                        : "border-amber-300 text-amber-700 text-xs"
+                    }
+                  >
+                    {emailConfidence >= 50
+                      ? `${emailConfidence}% confidence`
+                      : `${emailConfidence}% — verify before sending`}
+                  </Badge>
+                </div>
+              )}
+
+              {hunter.status === "no_domain" && (
+                <p className="text-xs text-gray-400">No domain found for this org.</p>
+              )}
+              {hunter.status === "not_found" && (
+                <p className="text-xs text-gray-400">Email not found by Hunter.io.</p>
+              )}
+              {hunter.status === "quota_reached" && (
+                <p className="text-xs text-amber-600">
+                  Monthly Hunter.io limit reached ({hunter.used}/{hunter.cap}).
+                </p>
+              )}
+              {hunter.status === "error" && (
+                <p className="text-xs text-red-500">Hunter.io lookup failed.</p>
+              )}
+
+              {!toEmail && hunter.status === "idle" && (
                 <p className="text-xs text-gray-400">
-                  Email not found via extension — check org website or 990 PDF.
+                  {hunterEnabled
+                    ? "Email not found via extension — click Find email or enter manually."
+                    : "Email not found via extension — check org website or 990 PDF."}
                 </p>
               )}
             </div>

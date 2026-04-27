@@ -2,11 +2,13 @@ import { db } from "@/lib/db";
 import { apiTokens, drafts, replies, sends, usageLog } from "@/lib/db/schema";
 import { createApiToken, revokeAllTokens } from "@/lib/auth/tokens";
 import { getWeeklySendCount } from "@/lib/services/sends/resend";
+import { env } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, count, desc, gte, sum } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { HealthPanel } from "@/components/settings/health-panel";
+import { HunterUsagePanel } from "@/components/settings/hunter-usage-panel";
 import { TokenPanel } from "@/components/settings/token-panel";
 import { PromptPerfPanel } from "@/components/settings/prompt-perf-panel";
 import { WeekCapPanel } from "@/components/settings/week-cap-panel";
@@ -31,6 +33,17 @@ async function getPromptPerf() {
   return rows.rows ?? [];
 }
 
+async function getMonthlyHunterUsage(): Promise<number> {
+  const firstOfMonth = new Date();
+  firstOfMonth.setDate(1);
+  const firstOfMonthStr = firstOfMonth.toISOString().slice(0, 10);
+  const [row] = await db
+    .select({ total: sum(usageLog.hunterCalls) })
+    .from(usageLog)
+    .where(gte(usageLog.day, firstOfMonthStr));
+  return Number(row?.total ?? 0);
+}
+
 async function getToken() {
   const [token] = await db
     .select({ id: apiTokens.id, name: apiTokens.name, createdAt: apiTokens.createdAt, expiresAt: apiTokens.expiresAt, lastUsedAt: apiTokens.lastUsedAt })
@@ -41,10 +54,11 @@ async function getToken() {
 }
 
 export default async function SettingsPage() {
-  const [promptPerf, token, weekCount] = await Promise.all([
+  const [promptPerf, token, weekCount, monthlyHunterUsed] = await Promise.all([
     getPromptPerf(),
     getToken(),
     getWeeklySendCount(),
+    getMonthlyHunterUsage(),
   ]);
 
   return (
@@ -60,6 +74,14 @@ export default async function SettingsPage() {
       <WeekCapPanel weekCount={weekCount} />
       <Separator />
 
+      {env.HUNTER_API_KEY && (
+        <>
+          <Separator />
+          <HunterUsagePanel monthlyUsed={monthlyHunterUsed} />
+        </>
+      )}
+
+      <Separator />
       <PromptPerfPanel rows={promptPerf} />
     </div>
   );

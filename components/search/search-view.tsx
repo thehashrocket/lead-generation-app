@@ -6,7 +6,7 @@ import { SearchResults } from "./search-results";
 import { DraftSheet } from "../drafts/draft-sheet";
 import type { SearchResultOrg } from "./types";
 
-export function SearchView() {
+export function SearchView({ hunterEnabled = false }: { hunterEnabled?: boolean }) {
   const [selectedOrg, setSelectedOrg] = useState<SearchResultOrg | null>(null);
 
   return (
@@ -16,7 +16,11 @@ export function SearchView() {
         <SearchResults onSelectOrg={setSelectedOrg} />
       </div>
       {selectedOrg && (
-        <DraftSheet org={selectedOrg} onClose={() => setSelectedOrg(null)} />
+        <DraftSheet
+          org={selectedOrg}
+          onClose={() => setSelectedOrg(null)}
+          hunterEnabled={hunterEnabled}
+        />
       )}
     </div>
   );
