@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3.1] - 2026-04-27
+
+### Fixed
+- Searching by state (e.g. `state=CA`) no longer returns a 500 error. Root cause: ProPublica's v2 API returns HTTP 500 for any request that includes a `state[]` parameter, regardless of encoding. The state parameter is now removed from the ProPublica request entirely; state filtering is handled client-side by the existing `applyOrganizationFilters` function, which was already doing this for NTEE codes.
+
 ## [0.2.3.0] - 2026-04-27
 
 ### Fixed
