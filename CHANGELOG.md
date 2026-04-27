@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2.1] - 2026-04-27
+
+### Fixed
+- Remove `middleware.ts` re-export shim that caused a hard build error in Next.js 16.2.4. Next.js 16 loads `proxy.ts` directly — having both files at the project root triggers "Both middleware file and proxy file detected." Auth behavior is unchanged.
+
 ## [0.2.2.0] - 2026-04-27
 
 ### Security
