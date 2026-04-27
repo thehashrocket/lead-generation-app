@@ -1,15 +1,47 @@
 # TODOS
 
-## Email acquisition via Hunter.io (Ready to build — spike complete 2026-04-27)
+## ~~Email acquisition via Hunter.io~~ (RESOLVED 2026-04-27)
 Wire up Hunter.io Email Finder API to auto-populate the To: field when contact email is null.
+**Resolved:** Full implementation shipped in v0.3.0.0. Route, service, schema, UI, and tests all complete.
 **Spike findings:** Free tier is 50 credits/month (matches the 50 emails/week cap). API: `GET https://api.hunter.io/v2/email-finder?domain=X&first_name=Y&last_name=Z&api_key=KEY` → returns email + confidence (0-100).
-**Constraint:** Chrome extension captures `company` (org name), not domain. Domain must be derived from `propublica_url` (strip to root domain) or org website field. Add validation: confidence < 50 = yellow warning badge, Jason should verify before sending.
+
+**Domain derivation:** Add `website` (nullable text) to `orgs` table. Populate via a new ProPublica per-org API call (`GET https://projects.propublica.org/nonprofits/api/v2/organizations/[ein].json`) added to the existing 990 enrich route (`/api/orgs/[ein]/enrich`), before the IRS 990 XML fetch. Cache result in `orgs.website`. If `website` is null after enrichment: return `{ email: null, reason: 'no_domain' }`. NOTE: `propublica_url` stores ProPublica's own page URL — useless for Hunter.io domain lookup.
+
+**Pre-population fix (independent of Hunter.io):** `/api/drafts/generate` must look up contacts by `orgId` and return `toEmail` if `contacts.email` is set. `DraftSheet` seeds `toEmail` from the generate response. Prevents empty To: fields for orgs with already-known contact emails.
+
 **What to build:**
-- `HUNTER_API_KEY` env var
+- `HUNTER_API_KEY` env var (optional — feature degrades gracefully when absent: button hidden)
 - `lib/services/contacts/email-lookup.ts` — fetch wrapper, returns `{ email, confidence } | null`
-- `GET /api/contacts/email-lookup?contactId=...` — requires `requireWebSession()`, calls Hunter, updates `contacts.email`
-- UI: "Find email" button in Draft panel To: field when email is null; spinner while fetching; fills field on success with confidence badge
-**Start:** New branch. ~2-3 hours to implement + test.
+- `GET /api/contacts/email-lookup?orgId=...` — requires `requireWebSession()`, then:
+  1. Look up org by `orgId` (404 if not found)
+  2. Find contact by `orgId` OR create stub via `INSERT ... ON CONFLICT DO NOTHING` (requires partial unique index: `contacts(org_id) WHERE linkedin_url IS NULL`)
+  3. Credit guard: if `contacts.email` is set AND `contacts.linkedin_url IS NOT NULL` → return early (never overwrite extension-captured emails). If `contacts.email` is set AND `linkedin_url IS NULL` → return early (already have a Hunter result).
+  4. Quota check: `SELECT SUM(hunter_calls) FROM usage_log WHERE day >= DATE_TRUNC('month', CURRENT_DATE)`. If >= 50 → return `{ email: null, reason: 'quota_reached' }`.
+  5. Call Hunter.io Email Finder: split `contact.name` on first space for `first_name`/`last_name`; use `orgs.website` for `domain`.
+  6. On success: write `contacts.email`, `contacts.email_confidence` (nullable smallint); increment `usage_log.hunter_calls` for today (upsert by day).
+  7. Return `{ email, confidence }`.
+- UI in `DraftSheet`:
+  - "Find email" button below To: field when `toEmail` is empty AND `HUNTER_API_KEY` present
+  - Spinner while fetching; fills `toEmail` on success
+  - Badge: green if confidence >= 50, yellow if confidence < 50 (reconstructed from `contacts.email_confidence` on draft reopen)
+  - At quota: button shows "Monthly limit reached (50/50)" disabled — same pattern as send cap
+  - `no_domain`: inline "No domain found for this org"
+  - null result: inline "Email not found by Hunter.io"
+- Settings view: add Hunter.io usage row: `SUM(hunter_calls) WHERE day >= DATE_TRUNC('month', CURRENT_DATE)` / 50 — same section as Prompt Performance
+
+**Schema changes (all in one migration):**
+- `orgs.website` — nullable text
+- `contacts.email_confidence` — nullable smallint
+- `contacts`: partial unique index on `(org_id) WHERE linkedin_url IS NULL`
+- `usage_log.hunter_calls` — nullable int (existing rows default null = 0)
+
+**Tests (`lib/__tests__/email-lookup.test.ts` + route tests):**
+- `email-lookup.ts`: credit guard exits when email set, domain null → null, Hunter 4xx/5xx → null, confidence < 50 flagged, happy path
+- Route: 401 (no session), 400 (missing orgId), 404 (org not found), early return for extension email (linkedinUrl not null), early return for existing stub email, no website → `no_domain`, monthly quota >= 50 → `quota_reached`, single-name contact split, Hunter null result, happy path
+- `/api/drafts/generate`: regression test — contact by orgId found → toEmail in response
+- `DraftSheet`: seeded toEmail from generate response (unit); Find Email button flow (E2E)
+
+**Start:** New branch. ~4-5 hours to implement + test.
 
 ## ~~Email deliverability DNS check~~ (RESOLVED 2026-04-26)
 ~~Verify which Gmail address Jason will use for sending...~~

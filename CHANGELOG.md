@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0.0] - 2026-04-27
+
+### Added
+- **Hunter.io email lookup**: `GET /api/contacts/email-lookup?orgId=<id>` finds a contact email for any org using the Hunter.io Finder API. Includes credit guard (returns cached email without consuming a credit), monthly quota enforcement (50 credits/month cap via `usage_log.hunter_calls` SUM), and `no_domain` / `not_found` / `quota_reached` response codes.
+- **Find email button** in DraftSheet: when `hunterEnabled` is true and no email is present, a "Find email" button calls the new endpoint and seeds the `To:` field. Shows confidence badge (green ≥50%, amber <50%).
+- **Email confidence badges**: DraftSheet shows Hunter.io confidence score when an email is auto-populated from the generate response or a manual lookup. Scores <50 show "verify before sending" warning.
+- **Website enrichment via ProPublica**: `GET /api/orgs/[ein]/enrich` now calls ProPublica `/organizations/{ein}.json` to fetch and cache `orgs.website` when it is null. This domain is used downstream by Hunter.io.
+- **HunterUsagePanel** component in Settings: displays current-month Hunter.io lookup usage (`used/50`), amber warning at 40+, red at cap.
+- **Shared hunter cap constant**: `lib/constants/hunter.ts` exports `MONTHLY_HUNTER_CAP = 50` used by the route, settings panel, and any future consumers.
+- **DB migration 0002**: adds `orgs.website TEXT`, `contacts.email_confidence SMALLINT`, `usage_log.hunter_calls INTEGER DEFAULT 0`, and a partial unique index `contacts_stub_org_unique_idx ON contacts (org_id) WHERE linkedin_url IS NULL` for idempotent contact stub upserts.
+- **`toEmail` seeded from generate response**: `POST /api/drafts/generate` now returns `toEmail` and `emailConfidence` from a parallel contact lookup so DraftSheet can pre-populate the recipient field without a separate round-trip.
+
+### Fixed
+- `DraftSheet` cap detection now uses a typed `reason: "cap_reached"` field on `DraftState` instead of string-sniffing `draft.message.includes("cap")`.
+- `email-lookup` service normalizes ProPublica website values (full URLs like `https://example.org`) to bare hostnames before passing to Hunter.io domain search.
+- Drizzle schema (`contacts.ts`) now declares the partial unique index in-code, eliminating schema drift between migration SQL and ORM schema.
+
+### Tests
+- 62% line coverage (up from ~42% before this release). Added `enrich-route.test.ts` (9 paths), `drafts-generate-route.test.ts` extensions (4 paths), `email-lookup-route.test.ts` extensions (race condition 500), `email-lookup.test.ts`, and `draft-sheet.test.tsx` (React component, happy-dom).
+
 ## [0.2.3.1] - 2026-04-27
 
 ### Fixed

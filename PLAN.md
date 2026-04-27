@@ -789,19 +789,19 @@ None.
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | - | - |
-| Outside Voice | `/codex` | Independent 2nd opinion | 3 | issues_found | 14 findings (pass 2), 13 incorporated |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 4 | CLEAR (PLAN) | Pass 4: 1 issue (P1 auth fixed), 0 critical gaps |
+| Outside Voice | `/codex` | Independent 2nd opinion | 4 | issues_found | Pass 5: 5 findings on Hunter.io spec, all resolved |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR (PLAN) | Pass 5: 10 issues found on Hunter.io TODO spec, 0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 3/10 -> 8/10, 14 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | score: 2/10 -> 8.4/10, 24 decisions |
 
-**OUTSIDE VOICE (Codex gpt-5.4, 2026-04-26):** 14 findings on revised plan after Resend pivot. 10 auto-incorporated as critical hardening (MX subdomain, suppression table, outbound idempotency, conversation thread state, reply classifier, PII redaction, loopback smoke test, Postgres-backed circuit breaker, Reply-To preservation in forward, extension origin check). 3 user decisions resolved (D15 auth simplified to Vercel Authentication — **REVERTED in Pass 3**, D16 990 kept, D17 scope kept). 1 disagreement (Codex argued search data model fragile; reviewer holds at 50/week + manual selection scale).
+**OUTSIDE VOICE (Codex gpt-5.4, 2026-04-26):** 14 findings on revised plan after Resend pivot. 10 auto-incorporated as critical hardening. 3 user decisions resolved. 1 disagreement (search corpus — acceptable risk at current scale).
 
-**CROSS-MODEL:** Codex and reviewer agree on all 10 auto-incorporated items. Reviewer disagrees on Codex #7 (search corpus) - acceptable risk at current scale. Codex #8 (990 schedule trap) flagged but user kept (D16-A) acknowledging risk.
+**OUTSIDE VOICE PASS 2 (Claude subagent, 2026-04-27):** 5 findings on Hunter.io spec. All 5 resolved: (1) website column population path clarified — ProPublica per-org detail call added to enrich route; (2) stub contact race condition fixed with partial unique index + ON CONFLICT DO NOTHING; (3) monthly aggregation spec called out explicitly; (4) credit guard threshold (>= 50) specified; (5) overwrite protection rule added (never overwrite extension-captured emails where linkedinUrl IS NOT NULL).
 
-**ENG REVIEW PASS 3 (2026-04-27):** 1 issue found: D15 (Vercel Authentication) blocks Chrome extension bearer token calls and Resend webhook delivery — all routes are gated by Vercel deployment protection. Reverted to Next.js middleware (`middleware.ts`) with matcher excluding `/api/*`. 5 new middleware auth test paths added to test plan artifact.
+**CROSS-MODEL:** Claude subagent and eng review agree on all 5 Hunter.io findings.
 
-**ENG REVIEW PASS 4 (2026-04-27):** 1 issue found and fixed: `/api/drafts/[id]` (PATCH), `/api/drafts/generate` (POST), `/api/orgs/[ein]/enrich` (GET) had no auth guard. Added `requireWebSession()` to all three. Hunter.io email acquisition spike completed — free tier is 50 credits/month (matches send cap), API is trivial. Scoped TODO written, ready to build in next branch.
+**ENG REVIEW PASS 5 (2026-04-27):** Hunter.io TODO spec reviewed before build. 10 decisions (D1–D10): domain derivation fix (website column via ProPublica per-org API in enrich route), toEmail pre-population fix in generate endpoint, orgId-based route (not contactId), email_confidence persistence, credit tracking in usage_log (monthly aggregation), ProPublica per-org call placement, stub contact upsert with partial unique index, monthly SUM spec + overwrite protection rule, quota_reached UI path.
 
 **UNRESOLVED:** 0
 
-**VERDICT:** IMPLEMENTATION COMPLETE. All three plan lanes shipped. P1 auth gap closed. Next: Hunter.io email lookup (new branch, TODOS.md has full spec).
+**VERDICT:** IMPLEMENTATION COMPLETE. All three plan lanes shipped. Hunter.io TODO spec fully reviewed — ready to build on new branch.
