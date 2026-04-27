@@ -6,6 +6,22 @@ import { logger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
+const PROPUBLICA_BASE = "https://projects.propublica.org/nonprofits/api/v2";
+
+async function fetchOrgWebsite(ein: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${PROPUBLICA_BASE}/organizations/${ein}.json`, {
+      headers: { "User-Agent": "LeadGenApp/1.0 (personal outreach tool)" },
+      next: { revalidate: 0 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.organization?.website ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ ein: string }> },
@@ -23,6 +39,14 @@ export async function GET(
 
   const [org] = await db.select().from(orgs).where(eq(orgs.ein, ein)).limit(1);
   if (!org) return NextResponse.json({ missionText: null, programs: [], namedContact: null });
+
+  // Fetch ProPublica org detail for website (once per org; skip if already cached)
+  if (!org.website) {
+    const website = await fetchOrgWebsite(ein);
+    if (website) {
+      await db.update(orgs).set({ website }).where(eq(orgs.ein, ein));
+    }
+  }
 
   if (org.missionText) {
     let programs: string[] = [];
