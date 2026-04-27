@@ -51,7 +51,7 @@ async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<Sear
         const numCategory = NTEE_TO_PROPUBLICA_CATEGORY[params.nteeCode[0].toUpperCase()];
         if (numCategory != null) url.searchParams.set("ntee[id]", String(numCategory));
       }
-      if (params.state) url.searchParams.set("state[]", params.state);
+      // state[] causes ProPublica to 500 — post-filter via applyOrganizationFilters instead
       if (params.minRevenue != null) url.searchParams.set("min_income", String(params.minRevenue));
       if (params.maxRevenue != null) url.searchParams.set("max_income", String(params.maxRevenue));
     }
