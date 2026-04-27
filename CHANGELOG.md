@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0.1] - 2026-04-27
+
+### Added
+- `conductor.json` startup script for Conductor workspaces: `setup` copies `.env.local` from the shared project root (`$CONDUCTOR_ROOT_PATH`), installs dependencies, and runs database migrations; `run` starts the dev server.
+
+### Changed
+- Drizzle config now prefers `DATABASE_URL_UNPOOLED` over `DATABASE_URL` for migrations, ensuring a direct (non-pooled) Postgres connection as required by drizzle-kit.
+
 ## [0.2.0.0] - 2026-04-26
 
 ### Added
