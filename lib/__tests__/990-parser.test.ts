@@ -54,4 +54,16 @@ describe("parse990Xml", () => {
     expect(result.missionText).toBe("Fallback mission.");
     expect(result.pathMatched).toBe("MissionDescription");
   });
+
+  it("accepts mission text containing Unicode (smart quotes, accents, em-dash)", () => {
+    const xml = `<Return><ReturnData><IRS990><MissionDesc>Serve résidents—build a “better” community.</MissionDesc></IRS990></ReturnData></Return>`;
+    const result = parse990Xml(xml);
+    expect(result.missionText).toBe("Serve résidents—build a “better” community.");
+  });
+
+  it("rejects mission text containing binary control characters (NUL, BEL)", () => {
+    const xml = `<Return><ReturnData><IRS990><MissionDesc>Bad\x00data</MissionDesc></IRS990></ReturnData></Return>`;
+    const result = parse990Xml(xml);
+    expect(result.missionText).toBeNull();
+  });
 });

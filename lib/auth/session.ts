@@ -1,4 +1,6 @@
+import { getIronSession } from "iron-session";
 import type { SessionOptions } from "iron-session";
+import { type NextRequest, NextResponse } from "next/server";
 
 export type SessionData = {
   authenticated?: boolean;
@@ -21,3 +23,13 @@ export const sessionOptions: SessionOptions = {
     maxAge: 60 * 60 * 24 * 7,
   },
 };
+
+/** Returns 401 JSON response if the request has no authenticated session, null otherwise. */
+export async function requireWebSession(req: NextRequest): Promise<NextResponse | null> {
+  const res = NextResponse.next();
+  const session = await getIronSession<SessionData>(req, res, sessionOptions);
+  if (!session.authenticated) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}

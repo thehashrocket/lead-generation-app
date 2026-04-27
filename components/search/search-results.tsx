@@ -20,7 +20,7 @@ type SearchState =
   | { status: "done"; orgs: SearchResultOrg[]; total: number };
 
 export function SearchResults({ onSelectOrg }: Props) {
-  const { q, nteeCode, state, searchTrigger } = useSearchFiltersStore();
+  const { q, nteeCode, state, minRevenue, maxRevenue, searchTrigger } = useSearchFiltersStore();
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
 
   useEffect(() => {
@@ -34,6 +34,8 @@ export function SearchResults({ onSelectOrg }: Props) {
     if (q) params.set("q", q);
     if (nteeCode) params.set("nteeCode", nteeCode);
     if (state) params.set("state", state);
+    if (minRevenue) params.set("minRevenue", minRevenue);
+    if (maxRevenue) params.set("maxRevenue", maxRevenue);
 
     try {
       const res = await fetch(`/api/search?${params}`);

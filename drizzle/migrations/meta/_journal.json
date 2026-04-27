@@ -8,6 +8,13 @@
       "when": 1777297140185,
       "tag": "0000_perpetual_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777309709229,
+      "tag": "0001_add_token_expires_at",
+      "breakpoints": true
     }
   ]
 }

@@ -24,11 +24,6 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
     .limit(1);
   if (!draft) return { ok: false, error: "Draft not found" };
 
-  const weekCount = await getWeeklySendCount();
-  if (weekCount >= WEEKLY_SEND_CAP) {
-    return { ok: false, error: "Weekly cap reached — resets Monday", code: "cap_reached" };
-  }
-
   const suppressed = await isSuppressed(toEmail);
   if (suppressed) {
     return { ok: false, error: "Email address is suppressed", code: "suppressed" };
@@ -38,10 +33,20 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
   const idempotencyKey = crypto.randomUUID();
   const replyTo = `replies+${verpToken}@${env.RESEND_REPLY_TO_DOMAIN}`;
 
-  const [send] = await db
-    .insert(sends)
-    .values({ draftId, verpToken, idempotencyKey, status: "queued" })
-    .returning();
+  // Serializable transaction so cap check + insert are atomic — prevents concurrent sends overshooting 50/week
+  const sendResult = await db.transaction(async (tx) => {
+    const monday = getMondayOfCurrentWeek();
+    const [capRow] = await tx.select({ count: count() }).from(sends).where(gt(sends.sentAt, monday));
+    if ((capRow?.count ?? 0) >= WEEKLY_SEND_CAP) return null;
+    const [row] = await tx.insert(sends).values({ draftId, verpToken, idempotencyKey, status: "queued" }).returning();
+    return row;
+  }, { isolationLevel: "serializable" });
+
+  if (!sendResult) {
+    return { ok: false, error: "Weekly cap reached — resets Monday", code: "cap_reached" };
+  }
+
+  const send = sendResult;
 
   try {
     const result = await resend.emails.send({

@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
 import { contacts, drafts, orgs, replies, sends } from "@/lib/db/schema";
 import { SentTable } from "@/components/sent/sent-table";
+import { RefreshRepliesButton } from "@/components/sent/refresh-replies-button";
 import { getWeeklySendCount } from "@/lib/services/sends/resend";
-import { desc, eq, isNotNull, isNull } from "drizzle-orm";
-import { Download, RefreshCw } from "lucide-react";
+import { desc, eq } from "drizzle-orm";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -54,12 +55,7 @@ export default async function SentPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <form action="/api/sent/refresh" method="post">
-            <Button variant="outline" size="sm" type="submit" className="gap-1.5">
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh Replies
-            </Button>
-          </form>
+          <RefreshRepliesButton />
           <Link href="/api/export/sent" download>
             <Button variant="outline" size="sm" className="gap-1.5">
               <Download className="h-3.5 w-3.5" />

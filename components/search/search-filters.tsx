@@ -14,16 +14,20 @@ const US_STATES = [
 ];
 
 const NTEE_CODES = [
-  { code: "D20", label: "D20 — Animal Protection & Welfare" },
-  { code: "T", label: "T — Philanthropy & Voluntarism" },
+  { code: "D20", label: "D20 — Animal Rescues & Shelters" },
   { code: "P", label: "P — Human Services" },
+  { code: "K", label: "K — Food Banks & Pantries" },
+  { code: "L", label: "L — Housing & Shelters" },
   { code: "O", label: "O — Youth Development" },
+  { code: "N", label: "N — Recreation & Sports Leagues" },
   { code: "B", label: "B — Education" },
   { code: "E", label: "E — Health" },
+  { code: "C", label: "C — Environment & Conservation" },
+  { code: "T", label: "T — Philanthropy & Voluntarism" },
 ];
 
 export function SearchFilters() {
-  const { q, nteeCode, state, setQ, setNteeCode, setState, triggerSearch } =
+  const { q, nteeCode, state, minRevenue, maxRevenue, setQ, setNteeCode, setState, setMinRevenue, setMaxRevenue, triggerSearch } =
     useSearchFiltersStore();
 
   return (
@@ -73,6 +77,28 @@ export function SearchFilters() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-500">Revenue range ($)</label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Min"
+            value={minRevenue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinRevenue(e.target.value)}
+            className="h-8 w-1/2 text-sm"
+            min={0}
+          />
+          <Input
+            type="number"
+            placeholder="Max"
+            value={maxRevenue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMaxRevenue(e.target.value)}
+            className="h-8 w-1/2 text-sm"
+            min={0}
+          />
+        </div>
       </div>
 
       <Button size="sm" onClick={triggerSearch} className="w-full gap-2">

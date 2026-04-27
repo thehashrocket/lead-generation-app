@@ -1,7 +1,9 @@
 import { db } from "@/lib/db";
 import { apiTokens } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import crypto from "crypto";
+
+const TOKEN_TTL_DAYS = 90;
 
 export function generateToken(): string {
   return `lgat_${crypto.randomBytes(32).toString("hex")}`;
@@ -14,10 +16,11 @@ export function hashToken(token: string): string {
 export async function createApiToken(name: string): Promise<{ token: string; id: string }> {
   const token = generateToken();
   const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
   const [row] = await db
     .insert(apiTokens)
-    .values({ name, tokenHash })
+    .values({ name, tokenHash, expiresAt })
     .returning({ id: apiTokens.id });
 
   return { token, id: row.id };
@@ -32,7 +35,7 @@ export async function validateApiToken(
   const [row] = await db
     .select({ id: apiTokens.id })
     .from(apiTokens)
-    .where(eq(apiTokens.tokenHash, hash))
+    .where(and(eq(apiTokens.tokenHash, hash), or(isNull(apiTokens.expiresAt), gt(apiTokens.expiresAt, new Date()))))
     .limit(1);
 
   if (!row) return false;

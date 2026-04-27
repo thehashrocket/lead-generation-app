@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2.0] - 2026-04-27
+
+### Security
+- All web API routes (`/api/search`, `/api/sends`, `/api/export/*`, `/api/settings/token`) now require an authenticated session — previously only the middleware covered page routes.
+- API token validation now accepts pre-migration tokens with NULL `expires_at` so the Chrome extension is not locked out after deploying the token expiry migration.
+
+### Added
+- Revenue range filter (min/max) wired end-to-end: ProPublica API params, filter store, UI inputs, and CSV export. Stale-cache fallback uses numeric `CAST(total_revenue AS bigint)` comparison instead of lexicographic string comparison.
+- API token auto-expiry: tokens now expire after 90 days. Settings page shows an amber warning at ≤80 days and a red alert at ≤10 days or when expired.
+- NTEE code list expanded from 6 best-guess codes to 10 IRS-verified codes: adds K (Food Banks), L (Housing/Shelters), N (Recreation/Sports Leagues), C (Environment). Verified against IRS EO Business Master File export.
+
+### Fixed
+- `middleware.ts` was missing — Next.js never loaded `proxy.ts`, leaving all web routes completely unprotected.
+- `RefreshRepliesButton` on the Sent page replaced a dead `<form action="/api/sent/refresh">` with `router.refresh()`.
+- 990 mission text parser (`isPrintableAscii`) was silently discarding valid mission text containing smart quotes, em-dashes, or accented characters from real IRS filings. Now uses `isPrintableText` which accepts Unicode and only rejects binary control characters.
+- EIN format validation and hyphen normalization added to `/api/orgs/[ein]/enrich` — invalid formats return 400; hyphenated EINs are normalized to match DB storage format.
+- ProPublica org inserts replaced N+1 loop with single batched `onConflictDoUpdate` insert.
+
+### Tests
+- Integration test suite for `sendDraft()`: 5 tests covering success path, suppression, domain block, not-found draft, and weekly cap.
+- Playwright critical-path E2E tests: 8 tests covering auth redirects, login flow, search filters, and settings page.
+- Unit tests added for: `isPrintableText` (Unicode/control-char), `requireWebSession` (auth guard), token expiry logic, EIN format validation regex, `daysUntilExpiry` thresholds.
+
 ## [0.2.1.0] - 2026-04-27
 
 ### Security

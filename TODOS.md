@@ -12,12 +12,9 @@ Without email, the contact record is incomplete and outreach requires a manual l
 **Resolved:** Pivoted to Resend.com with `volunteerready.org` already warmed and live.
 SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5).
 
-## NTEE code verification (Before Day 1 of build)
-Spend 30 minutes on the IRS EO Business Master File to verify exact NTEE codes for target orgs.
-Design doc best guesses: D20 (animal welfare), T-series (voluntarism), P-series (human services), O (youth).
-NTEE is the core search primitive — wrong codes = useless results from day 1.
-**Reference:** https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf
-**Start:** Before writing any ProPublica client code. Hardcode the verified code list in the search filter UI.
+## ~~NTEE code verification~~ (RESOLVED 2026-04-27)
+~~Spend 30 minutes on the IRS EO Business Master File...~~
+**Resolved:** Verified against IRS BMF export. Final list: D20 (Animal Rescues), P (Human Services), K (Food Banks), L (Housing/Shelters), O (Youth Dev), N (Recreation/Sports), B (Education), E (Health), C (Environment), T (Philanthropy/Voluntarism). Updated in `search-filters.tsx`.
 
 ## ~~Reply digest notification~~ (OBSOLETE 2026-04-26)
 ~~Slack push removed; daily digest deferred...~~
@@ -43,23 +40,18 @@ volume grows or you want keyword search across mission text.
 **Start:** When sustained outreach exceeds 100 sends/week OR you find yourself wanting
 "search by keyword in mission" and ProPublica's UI doesn't cut it.
 
-## Extension token 90-day auto-expiry (When extension is shared with anyone)
-Add `expires_at` column to `api_tokens`, default 90 days from generation. UI banner at 80
-days: "Token expires in N days, regenerate." Hard upper bound on stolen-token lifetime.
-**Context:** D7 chose manual revoke for solo use. Codex flagged bearer token as the easiest
-secret to leak. Auto-expiry adds defense in depth — important if you ever share the extension
-or run it on multiple machines.
-**Start:** First time you share the extension OR install it on a second machine.
-**Depends on:** none (additive to existing `api_tokens` schema).
+## ~~Extension token 90-day auto-expiry~~ (RESOLVED 2026-04-27)
+~~Add `expires_at` column to `api_tokens`...~~
+**Resolved:** `expires_at` migration generated (`0001_add_token_expires_at.sql`). `validateApiToken` rejects expired tokens. Settings page shows amber banner ≤80 days, red banner ≤10 days.
 
 ## Weekly send cap race condition (Known edge case, post-launch fix)
-`sendDraft()` reads the weekly count then inserts — two concurrent sends could both see count < 50 and both go through, overshooting the cap by N concurrent callers. For a solo personal tool the race window is ~1ms with near-zero practical risk.
-**Fix:** Wrap count check + insert in a serializable transaction, or use a DB-level counter.
-**Start:** If cap ever fires unexpectedly during normal solo use (would indicate a retry burst).
+`sendDraft()` wraps the count check + insert in `db.transaction({ isolationLevel: "serializable" })`, but the project uses `drizzle-orm/neon-http` which silently no-ops transactions over HTTP — each statement is a separate round-trip with no isolation guarantee. The race is still open in practice.
+**Fix:** Switch to `drizzle-orm/neon-serverless` (WebSocket adapter) which supports real transactions, OR use an optimistic DB-level `UPDATE sends SET ... WHERE weekly_count < 50 RETURNING id` pattern.
+**Start:** If cap ever misfires during solo use (would indicate a retry burst). Near-zero risk for solo tool.
 
-## EIN format validation before 990 fetch (Defense in depth)
-`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment with no format check before passing to ProPublica and constructing the XML fetch URL. Add `if (!/^\d{2}-?\d{7}$/.test(ein))` guard at the route handler entry point.
-**Start:** Before the extension is shared or the app gets any public-facing traffic.
+## ~~EIN format validation before 990 fetch~~ (RESOLVED 2026-04-27)
+~~`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment...~~
+**Resolved:** Guard added at route entry in `app/api/orgs/[ein]/enrich/route.ts`.
 
 ## Integration test suite (Post-launch, after Neon dev branch is configured)
 API routes and service functions (webhook handlers, send cap logic, draft generation cap) are currently untested at the integration level. Unit tests cover pure logic (classifier, CSV, 990 parser, webhook verify). Full coverage requires a Neon dev branch for a test DB.

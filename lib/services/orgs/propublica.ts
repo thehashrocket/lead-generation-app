@@ -38,6 +38,8 @@ async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<Sear
     if (includeFilters) {
       if (params.nteeCode) url.searchParams.set("ntee[]", params.nteeCode);
       if (params.state) url.searchParams.set("state[]", params.state);
+      if (params.minRevenue != null) url.searchParams.set("min_income", String(params.minRevenue));
+      if (params.maxRevenue != null) url.searchParams.set("max_income", String(params.maxRevenue));
     }
     if (params.page) url.searchParams.set("page", String(params.page));
     return url.toString();
@@ -71,26 +73,29 @@ export async function searchOrgs(params: ProPublicaSearchParams): Promise<Search
   try {
     const data = await fetchFromProPublica(params);
 
-    for (const org of data.organizations) {
+    if (data.organizations.length > 0) {
+      const now = new Date();
       await db
         .insert(orgs)
-        .values({
-          ein: org.ein,
-          name: org.name,
-          nteeCode: org.ntee_code ?? undefined,
-          state: org.state ?? undefined,
-          totalRevenue: org.income_amount != null ? String(org.income_amount) : undefined,
-          propublicaUrl: org.propublica_url ?? undefined,
-          cachedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: orgs.ein,
-          set: {
+        .values(
+          data.organizations.map((org) => ({
+            ein: org.ein,
             name: org.name,
             nteeCode: org.ntee_code ?? undefined,
             state: org.state ?? undefined,
             totalRevenue: org.income_amount != null ? String(org.income_amount) : undefined,
-            cachedAt: new Date(),
+            propublicaUrl: org.propublica_url ?? undefined,
+            cachedAt: now,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: orgs.ein,
+          set: {
+            name: sql`excluded.name`,
+            nteeCode: sql`excluded.ntee_code`,
+            state: sql`excluded.state`,
+            totalRevenue: sql`excluded.total_revenue`,
+            cachedAt: sql`excluded.cached_at`,
           },
         });
     }
