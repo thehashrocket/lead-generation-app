@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "setup": "source ~/.nvm/nvm.sh && nvm use && ([ -f \"$CONDUCTOR_ROOT_PATH/.env.local\" ] && cp \"$CONDUCTOR_ROOT_PATH/.env.local\" .env.local || true) && pnpm install && (set -a; [ -f .env.local ] && source .env.local; set +a; pnpm db:migrate)",
+        "run": "source ~/.nvm/nvm.sh && nvm use && bun dev",
+        "archive": ""
+    }
+}
