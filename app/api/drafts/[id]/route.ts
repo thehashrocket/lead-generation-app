@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { drafts } from "@/lib/db/schema";
+import { requireWebSession } from "@/lib/auth/session";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -14,6 +15,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  const unauth = await requireWebSession(req);
+  if (unauth) return unauth;
+
   const { id } = await params;
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);

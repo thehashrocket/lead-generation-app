@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { drafts, orgs } from "@/lib/db/schema";
+import { requireWebSession } from "@/lib/auth/session";
 import { generateDraft } from "@/lib/services/drafts/generate";
 import { logger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
@@ -12,6 +13,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const unauth = await requireWebSession(req);
+  if (unauth) return unauth;
+
   const body = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
