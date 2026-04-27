@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +10,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const parsed = z.object({ password: z.string() }).safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
 
-  if (parsed.data.password !== process.env.APP_PASSWORD) {
+  const expected = Buffer.from(process.env.APP_PASSWORD ?? "");
+  const actual = Buffer.from(parsed.data.password);
+  const passwordMatch =
+    expected.length === actual.length && timingSafeEqual(expected, actual);
+  if (!passwordMatch) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

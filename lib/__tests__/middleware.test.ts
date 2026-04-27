@@ -44,4 +44,19 @@ describe("proxy auth", () => {
     const res = await proxy(makeRequest("/login"));
     expect(res.status).toBe(200);
   });
+
+  it("redirects to /login when session.authenticated is explicitly false", async () => {
+    vi.mocked(getIronSession).mockResolvedValue({ authenticated: false } as any);
+    const res = await proxy(makeRequest("/dashboard"));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/login");
+  });
+
+  it("config matcher excludes _next/static, _next/image, and favicon", () => {
+    expect(config.matcher).toBeDefined();
+    const pattern = String(config.matcher);
+    expect(pattern).toContain("_next/static");
+    expect(pattern).toContain("_next/image");
+    expect(pattern).toContain("favicon.ico");
+  });
 });
