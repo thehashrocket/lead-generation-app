@@ -58,6 +58,32 @@ describe("searchOrgs", () => {
     expect(result.organizations).toHaveLength(1);
     expect(result.organizations[0].ein).toBe("123456789"); // number → string normalization
   });
+
+  it("sends ntee[id] with ProPublica numeric category, not raw NTEE letter", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: vi.fn().mockResolvedValue({ organizations: [], total_results: 0, num_pages: 0, cur_page: 0 }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    await searchOrgs({ nteeCode: "E" }); // NTEE Health → ProPublica category 4
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    // URLSearchParams encodes "[" as "%5B" and "]" as "%5D"
+    expect(calledUrl).toContain("ntee%5Bid%5D=4");
+    expect(calledUrl).not.toContain("ntee%5B%5D"); // regression: old broken format
+  });
+
+  it("sends ntee[id]=3 for NTEE letter D (Animal-Related → ProPublica category 3)", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: vi.fn().mockResolvedValue({ organizations: [], total_results: 0, num_pages: 0, cur_page: 0 }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    await searchOrgs({ nteeCode: "D20" }); // sub-code — first letter "D" maps to 3
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain("ntee%5Bid%5D=3");
+  });
 });
 
 describe("applyOrganizationFilters", () => {
@@ -67,10 +93,16 @@ describe("applyOrganizationFilters", () => {
     expect(applyOrganizationFilters(orgs, {})).toHaveLength(4);
   });
 
-  it("filters by nteeCode exact match", () => {
+  it("filters by nteeCode subcode (D20) using prefix match", () => {
     const result = applyOrganizationFilters(orgs, { nteeCode: "D20" });
     expect(result).toHaveLength(2);
     expect(result.every((o) => o.ntee_code === "D20")).toBe(true);
+  });
+
+  it("filters by single-letter NTEE category (D) matching all D subcodes — regression: single-letter was returning 0 results", () => {
+    const result = applyOrganizationFilters(orgs, { nteeCode: "D" });
+    expect(result).toHaveLength(2); // ORG_D20 (TX) and ORG_D20_CA (CA)
+    expect(result.every((o) => o.ntee_code?.startsWith("D"))).toBe(true);
   });
 
   it("excludes orgs with null ntee_code when nteeCode filter is set", () => {

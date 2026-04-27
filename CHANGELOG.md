@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.3.0] - 2026-04-27
+
+### Fixed
+- Single-letter NTEE category codes (e.g. "E" for Health, "D" for Animal-Related) now return matching organizations instead of zero results. Root cause: the ProPublica v2 search API requires a numeric category ID (`ntee[id]=4`) not a letter code (`ntee[]=E`). All 26 NTEE major-group letters now map to the correct numeric ProPublica category before the request is sent.
+- Searching with no keyword no longer returns stale cached results with a misleading `stale: true` flag — the API now returns a clear 400 error so the UI can prompt for a search term.
+- Stale DB fallback (shown when ProPublica is unreachable) now correctly matches organizations by NTEE prefix (e.g. "E" matches "E210", "E310") instead of requiring an exact match that always returned zero results.
+
 ## [0.2.2.3] - 2026-04-27
 
 ### Fixed
