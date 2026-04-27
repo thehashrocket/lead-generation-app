@@ -84,6 +84,19 @@ describe("searchOrgs", () => {
     const calledUrl: string = mockFetch.mock.calls[0][0];
     expect(calledUrl).toContain("ntee%5Bid%5D=3");
   });
+
+  it("does NOT send state[] to ProPublica — regression: state[] causes ProPublica to 500", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: vi.fn().mockResolvedValue({ organizations: [], total_results: 0, num_pages: 0, cur_page: 0 }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    await searchOrgs({ q: "animal", nteeCode: "D20", state: "CA" });
+    const calledUrl: string = mockFetch.mock.calls[0][0];
+    expect(calledUrl).not.toContain("state%5B%5D"); // state[] causes ProPublica 500
+    expect(calledUrl).not.toContain("state["); // any bracket form of state
+  });
 });
 
 describe("applyOrganizationFilters", () => {
