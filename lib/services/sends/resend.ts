@@ -2,8 +2,7 @@ import { db } from "@/lib/db";
 import { contacts, drafts, forwardLog, orgs, sends, suppressions } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { Resend } from "resend";
-import { and, count, eq, gt, or } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { and, count, eq, gt, ne, or } from "drizzle-orm";
 
 const resend = new Resend(env.RESEND_API_KEY);
 
@@ -36,7 +35,10 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
   // Serializable transaction so cap check + insert are atomic — prevents concurrent sends overshooting 50/week
   const sendResult = await db.transaction(async (tx) => {
     const monday = getMondayOfCurrentWeek();
-    const [capRow] = await tx.select({ count: count() }).from(sends).where(gt(sends.sentAt, monday));
+    const [capRow] = await tx
+      .select({ count: count() })
+      .from(sends)
+      .where(and(gt(sends.sentAt, monday), ne(sends.status, "failed")));
     if ((capRow?.count ?? 0) >= WEEKLY_SEND_CAP) return null;
     const [row] = await tx.insert(sends).values({ draftId, verpToken, idempotencyKey, status: "queued" }).returning();
     return row;
@@ -61,7 +63,7 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
     });
 
     if (result.error) {
-      await db.delete(sends).where(eq(sends.id, send.id));
+      await db.update(sends).set({ status: "failed" }).where(eq(sends.id, send.id));
       return { ok: false, error: result.error.message, code: "provider_error" };
     }
 
@@ -73,7 +75,7 @@ export async function sendDraft(draftId: string, toEmail: string): Promise<SendR
 
     return { ok: true, sendId: send.id, resendMessageId };
   } catch (err) {
-    await db.delete(sends).where(eq(sends.id, send.id));
+    await db.update(sends).set({ status: "failed" }).where(eq(sends.id, send.id));
     return { ok: false, error: String(err), code: "provider_error" };
   }
 }
@@ -83,7 +85,7 @@ export async function getWeeklySendCount(): Promise<number> {
   const [row] = await db
     .select({ count: count() })
     .from(sends)
-    .where(gt(sends.sentAt, monday));
+    .where(and(gt(sends.sentAt, monday), ne(sends.status, "failed")));
   return row?.count ?? 0;
 }
 

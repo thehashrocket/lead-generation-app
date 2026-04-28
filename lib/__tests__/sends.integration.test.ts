@@ -10,15 +10,19 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const hasDb = !!process.env.DATABASE_URL;
 const describeOrSkip = hasDb ? describe : describe.skip;
 
-describeOrSkip("sendDraft() integration", () => {
-  // We mock the Resend client so we don't send real emails, but keep the DB real
-  vi.mock("resend", () => ({
+// Captured at mock-setup time so individual tests can override behavior via mockResolvedValueOnce
+let mockSend: ReturnType<typeof vi.fn>;
+
+vi.mock("resend", () => {
+  mockSend = vi.fn().mockResolvedValue({ data: { id: "resend-msg-test" }, error: null });
+  return {
     Resend: vi.fn().mockImplementation(() => ({
-      emails: {
-        send: vi.fn().mockResolvedValue({ data: { id: "resend-msg-test" }, error: null }),
-      },
+      emails: { send: mockSend },
     })),
-  }));
+  };
+});
+
+describeOrSkip("sendDraft() integration", () => {
 
   let orgId: string;
   let draftId: string;
@@ -44,7 +48,7 @@ describeOrSkip("sendDraft() integration", () => {
   afterEach(async () => {
     const { db: testDb } = await import("@/lib/db");
     const { orgs, drafts, sends, suppressions } = await import("@/lib/db/schema");
-    const { eq, inArray } = await import("drizzle-orm");
+    const { eq } = await import("drizzle-orm");
 
     // Clean up test rows in dependency order
     await testDb.delete(sends).where(eq(sends.draftId, draftId));
@@ -134,5 +138,85 @@ describeOrSkip("sendDraft() integration", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.code).toBe("cap_reached");
+  });
+
+  it("does not count failed sends toward the weekly cap", async () => {
+    const { sendDraft } = await import("@/lib/services/sends/resend");
+    const { db: testDb } = await import("@/lib/db");
+    const { sends } = await import("@/lib/db/schema");
+
+    // Seed 50 failed rows — should NOT block a new send
+    await testDb.insert(sends).values(
+      Array.from({ length: 50 }, () => ({
+        draftId,
+        verpToken: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+        status: "failed" as const,
+        sentAt: new Date(),
+      })),
+    );
+
+    const result = await sendDraft(draftId, "test@example.com");
+    expect(result.ok).toBe(true);
+  });
+
+  it("marks send row as failed when Resend returns an error response", async () => {
+    const { sendDraft } = await import("@/lib/services/sends/resend");
+    const { db: testDb } = await import("@/lib/db");
+    const { sends } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    mockSend.mockResolvedValueOnce({ data: null, error: { message: "rate limited" } });
+
+    const result = await sendDraft(draftId, "test@example.com");
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("provider_error");
+
+    // Row must be marked failed, not deleted
+    const [row] = await testDb.select().from(sends).where(eq(sends.draftId, draftId));
+    expect(row.status).toBe("failed");
+  });
+
+  it("marks send row as failed when Resend throws an exception", async () => {
+    const { sendDraft } = await import("@/lib/services/sends/resend");
+    const { db: testDb } = await import("@/lib/db");
+    const { sends } = await import("@/lib/db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    mockSend.mockRejectedValueOnce(new Error("network error"));
+
+    const result = await sendDraft(draftId, "test@example.com");
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("provider_error");
+
+    // Row must be marked failed, not deleted
+    const [row] = await testDb.select().from(sends).where(eq(sends.draftId, draftId));
+    expect(row.status).toBe("failed");
+  });
+
+  it("getWeeklySendCount does not count failed sends", async () => {
+    const { getWeeklySendCount } = await import("@/lib/services/sends/resend");
+    const { db: testDb } = await import("@/lib/db");
+    const { sends } = await import("@/lib/db/schema");
+
+    const countBefore = await getWeeklySendCount();
+
+    await testDb.insert(sends).values(
+      Array.from({ length: 3 }, () => ({
+        draftId,
+        verpToken: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+        status: "failed" as const,
+        sentAt: new Date(),
+      })),
+    );
+
+    const countAfter = await getWeeklySendCount();
+    // Failed rows must not affect the cap count
+    expect(countAfter).toBe(countBefore);
   });
 });
