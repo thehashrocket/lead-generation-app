@@ -4,6 +4,8 @@ export type SearchResultOrg = {
   name: string;
   nteeCode: string | null;
   state: string | null;
+  city?: string | null;
+  website?: string | null;
   totalRevenue: string | null;
   propublicaUrl: string | null;
   missionText: string | null;

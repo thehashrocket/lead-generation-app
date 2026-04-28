@@ -10,6 +10,7 @@
     "build": "drizzle-kit migrate && next build",
     "start": "next start",
     "setup": "bun run scripts/setup.ts",
+    "index-irs": "bun run scripts/index-irs-filings.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

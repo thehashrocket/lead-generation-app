@@ -9,3 +9,4 @@ export * from "./suppressions";
 export * from "./webhook-events";
 export * from "./forward-log";
 export * from "./usage-log";
+export * from "./irs-filings";

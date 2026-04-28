@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockDb = vi.hoisted(() => ({ select: vi.fn(), update: vi.fn() }));
 const mockSession = vi.hoisted(() => ({ requireWebSession: vi.fn() }));
-const mockFetch990 = vi.hoisted(() => ({ fetch990Xml: vi.fn(), parse990Xml: vi.fn() }));
+const mockFetch990 = vi.hoisted(() => ({ fetch990XmlFromUrls: vi.fn(), parse990Xml: vi.fn() }));
 const mockGlobalFetch = vi.fn();
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
@@ -41,7 +41,7 @@ beforeEach(() => {
   mockSession.requireWebSession.mockResolvedValue(null);
   mockDb.update = vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }) });
   mockGlobalFetch.mockResolvedValue({ ok: true, json: async () => ({ organization: { website: null } }) });
-  mockFetch990.fetch990Xml.mockResolvedValue(null);
+  mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
 });
 
 describe("GET /api/orgs/[ein]/enrich", () => {
@@ -68,10 +68,10 @@ describe("GET /api/orgs/[ein]/enrich", () => {
     expect(data.namedContact).toBeNull();
   });
 
-  it("skips fetchOrgWebsite when org already has a website", async () => {
-    const orgWithWebsite = { ...ORG_BASE, website: "https://example.org", missionText: "We help." };
-    mockDb.select = selectReturning([orgWithWebsite]).select;
-    mockFetch990.fetch990Xml.mockResolvedValue(null);
+  it("skips fetchOrgDetail when org already has all detail fields", async () => {
+    const orgWithDetail = { ...ORG_BASE, website: "https://example.org", city: "Los Angeles", numEmployees: 5, missionText: "We help." };
+    mockDb.select = selectReturning([orgWithDetail]).select;
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
 
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
     expect(mockGlobalFetch).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe("GET /api/orgs/[ein]/enrich", () => {
       ok: true,
       json: async () => ({ organization: { website: "https://fetched.org" } }),
     });
-    mockFetch990.fetch990Xml.mockResolvedValue(null);
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
 
     await GET(makeReq("12-3456789"), makeParams("12-3456789"));
 
@@ -102,14 +102,14 @@ describe("GET /api/orgs/[ein]/enrich", () => {
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
     const data = await res.json();
 
-    expect(mockFetch990.fetch990Xml).not.toHaveBeenCalled();
+    expect(mockFetch990.fetch990XmlFromUrls).not.toHaveBeenCalled();
     expect(data.missionText).toBe("Cached mission.");
     expect(data.programs).toEqual(["prog A"]);
   });
 
   it("returns limited:true when no 990 XML found", async () => {
     mockDb.select = selectReturning([ORG_BASE]).select;
-    mockFetch990.fetch990Xml.mockResolvedValue(null);
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
 
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
     const data = await res.json();
@@ -119,12 +119,14 @@ describe("GET /api/orgs/[ein]/enrich", () => {
 
   it("parses 990 XML and updates DB when XML is found", async () => {
     mockDb.select = selectReturning([ORG_BASE]).select;
-    mockFetch990.fetch990Xml.mockResolvedValue("<xml>...</xml>");
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue("<xml>...</xml>");
     mockFetch990.parse990Xml.mockReturnValue({
       missionText: "Parsed mission",
       programs: ["prog 1"],
       namedContact: "Jane Doe",
       pathMatched: "ScheduleO",
+      totalExpenses: 120000,
+      employeeCount: 8,
     });
 
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
@@ -139,7 +141,7 @@ describe("GET /api/orgs/[ein]/enrich", () => {
   it("handles ProPublica non-ok response and continues without website", async () => {
     mockDb.select = selectReturning([ORG_BASE]).select;
     mockGlobalFetch.mockResolvedValueOnce({ ok: false });
-    mockFetch990.fetch990Xml.mockResolvedValue(null);
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
 
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
     expect(res.status).toBe(200);

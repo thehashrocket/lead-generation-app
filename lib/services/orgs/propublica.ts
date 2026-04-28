@@ -71,9 +71,10 @@ async function fetchFromProPublica(params: ProPublicaSearchParams): Promise<Sear
   if (!res.ok) throw new Error(`ProPublica error: ${res.status}`);
 
   const data = await res.json();
-  // ProPublica returns ein as a number — normalize to string throughout
+  // ProPublica returns ein as a number — normalize to zero-padded 9-digit string.
+  // String(61461072) → "61461072" drops the leading zero; padStart restores it.
   for (const org of data.organizations ?? []) {
-    org.ein = String(org.ein);
+    org.ein = String(org.ein).padStart(9, "0");
   }
   return data;
 }

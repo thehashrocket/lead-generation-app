@@ -58,6 +58,24 @@ SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5)
 `jasshultz@gmail.com` means Jason gets the actual reply in his inbox, not a digest.
 See plan amendment "Eng Review Pass 2" (D2).
 
+## 990 mission text enrichment — fallback options (Post-launch, when volume justifies it)
+ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populates for orgs cached before this change. Financial fields (`totalExpenses`, `totalRevenue`, `numEmployees`, `city`) still populate reliably from ProPublica's structured filing data and org-level BMF data.
+
+**Options investigated:**
+- ProPublica `filing_url` — now null for all filings, approach dead
+- IRS S3 bucket (`s3.amazonaws.com/irs-form-990`) — bucket empty/inaccessible
+- IRS EFTS search (`efts.irs.gov`) — hostname does not resolve publicly
+- IRS TEOS bulk XML downloads — 404, moved or discontinued
+
+**Viable paths forward:**
+1. **Candid/GuideStar API** — has 990 XML data, free nonprofit developer account available. Best option.
+2. **Open990** — open dataset (opendata.iopen990.org), may require bulk download + self-hosting.
+3. **Draft without mission text** — improve prompt to write compelling drafts from financial data alone (`totalRevenue`, `totalExpenses`, `numEmployees`, `city`, NTEE code). Most immediate unblocking path.
+
+**Note:** `irs_filing_index` table and `lib/services/orgs/irs-990.ts` are scaffolded and ready to wire up once a source of `(EIN, ObjectId)` mappings is available.
+
+**Start:** When mission text coverage gap is blocking outreach quality. Option 3 is the fastest unblock.
+
 ## 990 fallback path telemetry review (Quarterly, post-launch)
 Quarterly Axiom query: `count by 990.path_matched for last 90 days`.
 If a previously-rare path becomes dominant, IRS schema drifted — update lenient parser

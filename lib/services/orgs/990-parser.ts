@@ -7,6 +7,8 @@ export type Parsed990 = {
   programs: string[];
   namedContact: { name: string; title: string } | null;
   pathMatched: string | null;
+  totalExpenses: number | null;
+  employeeCount: number | null;
 };
 
 const MISSION_PATHS = [
@@ -15,43 +17,51 @@ const MISSION_PATHS = [
   "Return.ReturnData.IRS990.ActivityOrMissionDesc",
 ];
 
+const EXPENSE_PATHS = [
+  "Return.ReturnData.IRS990.TotalFunctionalExpensesAmt",
+  "Return.ReturnData.IRS990EZ.TotalExpensesAmt",
+];
+
+const EMPLOYEE_PATHS = [
+  "Return.ReturnData.IRS990.TotalEmployeeCnt",
+  "Return.ReturnData.IRS990EZ.EmployeeCnt",
+];
+
 type OfficerCandidate = { name: string; title: string };
 
-export async function fetch990Xml(ein: string): Promise<string | null> {
-  const cleanEin = ein.replace(/-/g, "");
-  const url = `https://projects.propublica.org/nonprofits/api/v2/organizations/${cleanEin}.json`;
-
+async function tryFilingUrl(filingUrl: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 0 } });
+    const xmlUrl = filingUrl.replace(".pdf", "_xml.xml");
+    const res = await fetch(xmlUrl, { next: { revalidate: 0 } });
     if (!res.ok) return null;
-
-    const data = await res.json();
-    const filings: Array<{ filing_url?: string }> = data.filings_with_data ?? [];
-
-    for (const filing of filings) {
-      if (!filing.filing_url) continue;
-      const xmlUrl = filing.filing_url.replace(".pdf", "_xml.xml");
-      const xmlRes = await fetch(xmlUrl, { next: { revalidate: 0 } });
-      if (xmlRes.ok) {
-        const text = await xmlRes.text();
-        if (text.startsWith("<")) return text;
-      }
-    }
-    return null;
+    const text = await res.text();
+    return text.startsWith("<") ? text : null;
   } catch {
     return null;
   }
 }
 
+// Try each URL in order; fall back to fetching the ProPublica org page when the list is empty.
+export async function fetch990XmlFromUrls(filingUrls: string[], ein: string): Promise<string | null> {
+  for (const url of filingUrls) {
+    const xml = await tryFilingUrl(url);
+    if (xml) return xml;
+  }
+
+  return null;
+}
+
 export function parse990Xml(xmlText: string): Parsed990 {
   if (Buffer.byteLength(xmlText, "utf8") > MAX_XML_BYTES) {
-    return { missionText: null, programs: [], namedContact: null, pathMatched: "size_exceeded" };
+    return { missionText: null, programs: [], namedContact: null, pathMatched: "size_exceeded", totalExpenses: null, employeeCount: null };
   }
 
   const parser = sax.parser(true);
   const pathStack: string[] = [];
   let missionText: string | null = null;
   let pathMatched: string | null = null;
+  let totalExpenses: number | null = null;
+  let employeeCount: number | null = null;
   const programs: string[] = [];
   const officers: OfficerCandidate[] = [];
 
@@ -90,6 +100,24 @@ export function parse990Xml(xmlText: string): Parsed990 {
       }
     }
 
+    if (totalExpenses === null) {
+      for (const ep of EXPENSE_PATHS) {
+        if (fullPath === ep && currentText.trim()) {
+          const n = Number(currentText.trim());
+          if (!isNaN(n)) { totalExpenses = n; break; }
+        }
+      }
+    }
+
+    if (employeeCount === null) {
+      for (const ep of EMPLOYEE_PATHS) {
+        if (fullPath === ep && currentText.trim()) {
+          const n = Number(currentText.trim());
+          if (!isNaN(n)) { employeeCount = n; break; }
+        }
+      }
+    }
+
     if (
       fullPath.includes("ProgramServiceAccomplishmentsGrp") &&
       tagName === "Desc" &&
@@ -124,7 +152,7 @@ export function parse990Xml(xmlText: string): Parsed990 {
 
   const namedContact = findLeadOfficer(officers);
 
-  return { missionText, programs, namedContact, pathMatched };
+  return { missionText, programs, namedContact, pathMatched, totalExpenses, employeeCount };
 }
 
 function findLeadOfficer(officers: OfficerCandidate[]): OfficerCandidate | null {

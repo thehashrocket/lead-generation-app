@@ -40,8 +40,8 @@ describe("searchOrgs", () => {
     await expect(searchOrgs({ nteeCode: "D20" })).rejects.toBeInstanceOf(RateLimitError);
   });
 
-  it("returns organizations and normalizes EIN to string on 200 OK", async () => {
-    const apiOrg = { ein: 123456789, name: "Test Org", ntee_code: "D20", state: "TX", income_amount: 50000, propublica_url: null };
+  it("returns organizations and normalizes EIN to zero-padded 9-digit string on 200 OK", async () => {
+    const apiOrg = { ein: 61461072, name: "Test Org", ntee_code: "D20", state: "TX", income_amount: 50000, propublica_url: null };
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -57,7 +57,7 @@ describe("searchOrgs", () => {
     );
     const result = await searchOrgs({ nteeCode: "D20" });
     expect(result.organizations).toHaveLength(1);
-    expect(result.organizations[0].ein).toBe("123456789"); // number → string normalization
+    expect(result.organizations[0].ein).toBe("061461072"); // number → zero-padded 9-digit string
   });
 
   it("sends ntee[id] with ProPublica numeric category, not raw NTEE letter", async () => {
