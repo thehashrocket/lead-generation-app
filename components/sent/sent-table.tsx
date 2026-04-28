@@ -35,6 +35,12 @@ function StatusBadge({ row }: { row: SentRow }) {
   if (row.status === "bounced") {
     return <Badge variant="destructive" className="text-xs">Bounced</Badge>;
   }
+  if (row.status === "complained") {
+    return <Badge variant="destructive" className="text-xs">Complained</Badge>;
+  }
+  if (row.status === "failed") {
+    return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+  }
   return <Badge variant="secondary">No Reply</Badge>;
 }
 
