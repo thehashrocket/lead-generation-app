@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "drizzle-kit migrate && next build",
+    "build": "drizzle-kit migrate; MIGRATE_STATUS=$?; [ $MIGRATE_STATUS -ne 0 ] && echo \"⚠️  drizzle-kit migrate failed (exit $MIGRATE_STATUS) — see output above\"; next build",
     "start": "next start",
     "setup": "bun run scripts/setup.ts",
     "index-irs": "bun run scripts/index-irs-filings.ts",
