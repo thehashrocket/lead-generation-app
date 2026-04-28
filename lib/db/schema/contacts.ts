@@ -1,4 +1,5 @@
-import { boolean, index, pgTable, smallint, sql, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, index, pgTable, smallint, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 
 export const contacts = pgTable(
