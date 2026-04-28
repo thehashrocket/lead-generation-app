@@ -49,8 +49,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       organizations,
-      total_results: organizations.length,
-      num_pages: 1,
+      total_results: data.total_results,
+      num_pages: data.num_pages,
       cur_page: data.cur_page,
     });
   } catch (err) {
