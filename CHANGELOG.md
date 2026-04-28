@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2.0] - 2026-04-28
+
+### Fixed
+- **Weekly send cap is now atomic**: switched the database adapter from `neon-http` to `neon-serverless` (WebSocket-based) so the cap-check + insert transaction runs with true serializable isolation. Previously, two concurrent sends could both pass the cap check and overshoot the 50/week limit.
+- **Failed sends no longer pollute the cap count**: emails that fail at the Resend API are now marked `status: "failed"` instead of being silently deleted. The weekly cap query and `getWeeklySendCount()` exclude failed rows, so a failed attempt does not consume a slot.
+- **Sent table shows accurate status**: the Sent page now displays a "Failed" badge for sends that errored and a "Complained" badge for complaint events, instead of falling through to the misleading "No Reply" label.
+
 ## [0.3.1.1] - 2026-04-27
 
 ### Changed

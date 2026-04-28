@@ -790,7 +790,7 @@ None.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | - | - |
 | Outside Voice | `/codex` | Independent 2nd opinion | 4 | issues_found | Pass 5: 5 findings on Hunter.io spec, all resolved |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 5 | CLEAR (PLAN) | Pass 5: 10 issues found on Hunter.io TODO spec, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 6 | CLEAR (PLAN) | Pass 6: 3 bugs surfaced in TODOS backlog, all assigned concrete fixes |
 | Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR (FULL) | score: 3/10 -> 8/10, 14 decisions |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 1 | CLEAR | score: 2/10 -> 8.4/10, 24 decisions |
 
@@ -802,6 +802,8 @@ None.
 
 **ENG REVIEW PASS 5 (2026-04-27):** Hunter.io TODO spec reviewed before build. 10 decisions (D1–D10): domain derivation fix (website column via ProPublica per-org API in enrich route), toEmail pre-population fix in generate endpoint, orgId-based route (not contactId), email_confidence persistence, credit tracking in usage_log (monthly aggregation), ProPublica per-org call placement, stub contact upsert with partial unique index, monthly SUM spec + overwrite protection rule, quota_reached UI path.
 
+**ENG REVIEW PASS 6 (2026-04-28):** TODOS backlog reviewed post-Hunter.io launch. 3 decisions (D1–D3): (D1) switch `lib/db/index.ts` to `drizzle-orm/neon-serverless` WebSocket adapter — `drizzle-orm/neon-http` silently no-ops `db.transaction()`, leaving the weekly send cap race condition open despite the serializable transaction wrapper in `sendDraft()`; (D2) wire Candid/GuideStar API in `lib/services/orgs/irs-990.ts` to restore 990 mission text — ProPublica `filing_url` returns null for all filings as of 2026-04 and the IRS S3 bucket is inaccessible, D2 blocked on Candid account signup; (D3) add `"failed"` to `sendStatusEnum`, replace `db.delete` on error with `db.update(status: "failed")`, exclude failed rows from cap count query in `sendDraft()` and `getWeeklySendCount()`. Codex outside voice confirmed all three (D2/D3 with minor caveats, both addressed in TODOS spec). All 3 decisions tracked in TODOS.md.
+
 **UNRESOLVED:** 0
 
-**VERDICT:** IMPLEMENTATION COMPLETE. All three plan lanes shipped. Hunter.io TODO spec fully reviewed — ready to build on new branch.
+**VERDICT:** IMPLEMENTATION COMPLETE. All three plan lanes shipped. Hunter.io live. 3 open work items in TODOS.md: D1 and D3 ready to build now; D2 blocked on Candid signup.

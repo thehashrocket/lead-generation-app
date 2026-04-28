@@ -58,23 +58,38 @@ SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5)
 `jasshultz@gmail.com` means Jason gets the actual reply in his inbox, not a digest.
 See plan amendment "Eng Review Pass 2" (D2).
 
-## 990 mission text enrichment — fallback options (Post-launch, when volume justifies it)
-ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populates for orgs cached before this change. Financial fields (`totalExpenses`, `totalRevenue`, `numEmployees`, `city`) still populate reliably from ProPublica's structured filing data and org-level BMF data.
+## 990 mission text enrichment — wire Candid/GuideStar API (DECIDED 2026-04-28, blocked on account)
+ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populates for orgs cached before this change. Financial fields still populate reliably from ProPublica structured data.
 
-**Options investigated:**
-- ProPublica `filing_url` — now null for all filings, approach dead
-- IRS S3 bucket (`s3.amazonaws.com/irs-form-990`) — bucket empty/inaccessible
-- IRS EFTS search (`efts.irs.gov`) — hostname does not resolve publicly
-- IRS TEOS bulk XML downloads — 404, moved or discontinued
+**Decision (Eng Review Pass 6, D2):** Wire Candid/GuideStar API. Free nonprofit developer account available at data.candid.org.
 
-**Viable paths forward:**
-1. **Candid/GuideStar API** — has 990 XML data, free nonprofit developer account available. Best option.
-2. **Open990** — open dataset (opendata.iopen990.org), may require bulk download + self-hosting.
-3. **Draft without mission text** — improve prompt to write compelling drafts from financial data alone (`totalRevenue`, `totalExpenses`, `numEmployees`, `city`, NTEE code). Most immediate unblocking path.
+**What to do (BLOCKED on signup):**
+1. Sign up at data.candid.org for a developer API key. Add `CANDID_API_KEY` to `lib/env.ts` and Vercel env vars.
+2. `lib/services/orgs/irs-990.ts`: replace `IRS_S3_BASE` fetch with Candid 990 XML endpoint. Keep `fetchIrsXml(ein): Promise<string | null>` signature unchanged.
+3. Add rate-limit guard per Candid free tier limits (check on signup).
+4. Add mock in `lib/__tests__/enrich-route.test.ts`: Candid returns XML → `missionText` populated.
 
-**Note:** `irs_filing_index` table and `lib/services/orgs/irs-990.ts` are scaffolded and ready to wire up once a source of `(EIN, ObjectId)` mappings is available.
+**Caveats (Codex):** Add error handling, rate-limit management, and schema-change monitoring for Candid API responses.
 
-**Start:** When mission text coverage gap is blocking outreach quality. Option 3 is the fastest unblock.
+**Note:** `lib/services/orgs/irs-990.ts` and `irs_filing_index` table are scaffolded and ready. The `990-parser.ts` already handles the XML once fetched.
+
+**Start:** After Candid account signup. ~2 hrs implementation once unblocked.
+
+## ~~Ghost sends — add 'failed' status to sends table~~ (RESOLVED 2026-04-28)
+When Resend returns an error, `sendDraft()` calls `db.delete(sends)` to remove the queued row. If that delete fails (network hiccup), the row stays in `status: "queued"` permanently, pollutes the weekly cap count, and is invisible in the Sent view. Same bug applies to `getWeeklySendCount()`.
+
+**Decision (Eng Review Pass 6, D3):** Add `"failed"` to `sendStatusEnum`, set `status: "failed"` on error instead of deleting, exclude failed rows from cap count.
+
+**What to do:**
+- `lib/db/schema/sends.ts`: add `"failed"` to `sendStatusEnum` array.
+- Run `bun drizzle-kit generate` to create migration. Existing rows are unaffected (additive enum).
+- `lib/services/sends/resend.ts`: both catch blocks — replace `db.delete(sends).where(eq(sends.id, send.id))` with `db.update(sends).set({ status: "failed" }).where(eq(sends.id, send.id))`.
+- `lib/services/sends/resend.ts` cap count query in `sendDraft()` + `getWeeklySendCount()`: add `ne(sends.status, "failed")` to the `where` clause.
+- `lib/__tests__/sends.integration.test.ts`: add case — seed 50 `failed` rows → cap NOT reached.
+
+**Caveats (Codex):** Verify migration handles existing rows; ensure cap query correctly excludes failures.
+
+**Start:** Ready now. ~60 min. Can parallelize with D1.
 
 ## 990 fallback path telemetry review (Quarterly, post-launch)
 Quarterly Axiom query: `count by 990.path_matched for last 90 days`.
@@ -101,10 +116,9 @@ matches on later pages that are invisible until the corpus is built.
 ~~Add `expires_at` column to `api_tokens`...~~
 **Resolved:** `expires_at` migration generated (`0001_add_token_expires_at.sql`). `validateApiToken` rejects expired tokens. Settings page shows amber banner ≤80 days, red banner ≤10 days.
 
-## Weekly send cap race condition (Known edge case, post-launch fix)
-`sendDraft()` wraps the count check + insert in `db.transaction({ isolationLevel: "serializable" })`, but the project uses `drizzle-orm/neon-http` which silently no-ops transactions over HTTP — each statement is a separate round-trip with no isolation guarantee. The race is still open in practice.
-**Fix:** Switch to `drizzle-orm/neon-serverless` (WebSocket adapter) which supports real transactions, OR use an optimistic DB-level `UPDATE sends SET ... WHERE weekly_count < 50 RETURNING id` pattern.
-**Start:** If cap ever misfires during solo use (would indicate a retry burst). Near-zero risk for solo tool.
+## ~~Weekly send cap race condition~~ (RESOLVED 2026-04-28)
+~~`sendDraft()` wraps the count check + insert in `db.transaction({ isolationLevel: "serializable" })`, but the project uses `drizzle-orm/neon-http` which silently no-ops transactions over HTTP...~~
+**Resolved (Eng Review Pass 6):** Switch `lib/db/index.ts` to `drizzle-orm/neon-serverless` WebSocket adapter. Real serializable transactions now enforced. See D1 in review log.
 
 ## ~~EIN format validation before 990 fetch~~ (RESOLVED 2026-04-27)
 ~~`/api/orgs/[ein]/enrich` takes EIN directly from the URL segment...~~
