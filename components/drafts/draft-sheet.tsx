@@ -187,7 +187,7 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
 
   return (
     <Sheet open onOpenChange={(open: boolean) => !open && onClose()}>
-      <SheetContent side="right" className="flex w-[60vw] max-w-none flex-col p-0">
+      <SheetContent side="right" className="flex w-[80vw] max-w-none flex-col p-0">
         <SheetHeader className="flex flex-row items-center justify-between border-b px-6 py-4">
           <div className="flex items-center gap-3">
             <SheetTitle className="text-lg font-bold">{org.name}</SheetTitle>
@@ -201,7 +201,7 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left: org context */}
-          <div className="flex w-[45%] flex-col gap-4 overflow-auto border-r p-6">
+          <div className="flex w-[38%] flex-col gap-4 overflow-auto border-r p-6">
             <Org990Panel org={org} />
 
             <div className="flex flex-col gap-1">
@@ -277,7 +277,7 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
           </div>
 
           {/* Right: draft editor */}
-          <div className="flex w-[55%] flex-col p-6">
+          <div className="flex w-[62%] flex-col p-6">
             {draft.status === "generating" && (
               <div className="flex flex-1 flex-col items-center justify-center gap-3">
                 <div className="space-y-2 w-full">

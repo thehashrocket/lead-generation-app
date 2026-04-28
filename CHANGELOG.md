@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1.1] - 2026-04-27
+
+### Changed
+- **DraftSheet width**: widened slide-over panel from 60vw to 80vw; rebalanced column split from 45/55 to 38/62 so the email editor has more room.
+
 ## [0.3.1.0] - 2026-04-27
 
 ### Fixed
