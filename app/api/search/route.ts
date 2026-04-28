@@ -27,16 +27,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // ProPublica's ntee[] and state[] filters are unreliable — post-filter to guarantee correctness
     const filtered = applyOrganizationFilters(data.organizations, { nteeCode, state });
 
-    const eins = filtered.map((o) => o.ein);
-    const cached = eins.length > 0
-      ? await db.select({ ein: orgs.ein, id: orgs.id, missionText: orgs.missionText })
-          .from(orgs)
-          .where(inArray(orgs.ein, eins))
-      : [];
+    // Also pull matching orgs from the DB cache accumulated across all previous searches.
+    // This is how state filtering works: ProPublica can't filter by state, so we rely on
+    // the cache built up as the user pages through results.
+    const dbConditions = [isNotNull(orgs.cachedAt)];
+    if (q) dbConditions.push(ilike(orgs.name, `%${q}%`));
+    if (nteeCode) {
+      dbConditions.push(
+        nteeCode.length === 1
+          ? ilike(orgs.nteeCode, nteeCode + "%")
+          : eq(orgs.nteeCode, nteeCode),
+      );
+    }
+    if (state) dbConditions.push(eq(orgs.state, state));
+    if (minRevenue != null) dbConditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) >= ${minRevenue}`);
+    if (maxRevenue != null) dbConditions.push(sql`CAST(${orgs.totalRevenue} AS bigint) <= ${maxRevenue}`);
 
-    const cachedMap = new Map(cached.map((c) => [c.ein, c]));
+    const dbRows = await db.select().from(orgs).where(and(...dbConditions)).limit(200);
 
-    const organizations = filtered.map((o) => ({
+    // Merge: ProPublica results take precedence (fresher), DB fills in the rest
+    const propublicaEins = new Set(filtered.map((o) => o.ein));
+    const dbOnlyRows = dbRows.filter((r) => !propublicaEins.has(r.ein));
+    const cachedMap = new Map(dbRows.map((r) => [r.ein, r]));
+
+    const fromPropublica = filtered.map((o) => ({
       id: cachedMap.get(o.ein)?.id ?? o.ein,
       ein: o.ein,
       name: o.name,
@@ -46,6 +60,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       propublicaUrl: o.propublica_url,
       missionText: cachedMap.get(o.ein)?.missionText ?? null,
     }));
+
+    const fromDb = dbOnlyRows.map((r) => ({
+      id: r.id,
+      ein: r.ein,
+      name: r.name,
+      nteeCode: r.nteeCode,
+      state: r.state,
+      totalRevenue: r.totalRevenue,
+      propublicaUrl: r.propublicaUrl,
+      missionText: r.missionText,
+    }));
+
+    const organizations = [...fromPropublica, ...fromDb];
 
     return NextResponse.json({
       organizations,
