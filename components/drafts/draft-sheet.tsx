@@ -50,9 +50,6 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
   const [hunter, setHunter] = useState<HunterState>({ status: "idle" });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  useEffect(() => {
-    generateDraft();
-  }, [org.ein]);
 
   async function generateDraft() {
     setDraft({ status: "generating" });
@@ -317,7 +314,15 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
               </div>
             )}
 
-            {(draft.status === "ready" || draft.status === "idle") && (
+            {draft.status === "idle" && (
+              <div className="flex flex-1 items-center justify-center">
+                <Button onClick={generateDraft} className="gap-2">
+                  Generate Draft
+                </Button>
+              </div>
+            )}
+
+            {draft.status === "ready" && (
               <div className="flex flex-1 flex-col gap-3">
                 <Input
                   placeholder="Subject line"
@@ -351,16 +356,18 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
             {draft.status === "ready" && (
               <span className="text-xs text-gray-400">{draft.model}</span>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={generateDraft}
-              disabled={draft.status === "generating"}
-              className="gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
-            </Button>
+            {draft.status !== "idle" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateDraft}
+                disabled={draft.status === "generating"}
+                className="gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Regenerate
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={handleSend}

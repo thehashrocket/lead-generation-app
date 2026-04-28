@@ -1,14 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
-type Store = {
+type StoreState = {
   q: string;
   nteeCode: string;
   state: string;
   minRevenue: string;
   maxRevenue: string;
   searchTrigger: number;
+};
+
+type Store = StoreState & {
   setQ: (v: string) => void;
   setNteeCode: (v: string) => void;
   setState: (v: string) => void;
@@ -17,28 +20,31 @@ type Store = {
   triggerSearch: () => void;
 };
 
-// Module-level state so SearchFilters and SearchResults share it without prop drilling
-let listeners: Array<(s: Omit<Store, "setQ" | "setNteeCode" | "setState" | "setMinRevenue" | "setMaxRevenue" | "triggerSearch">) => void> = [];
-let storeState = { q: "", nteeCode: "", state: "", minRevenue: "", maxRevenue: "", searchTrigger: 0 };
+const INITIAL_STATE: StoreState = { q: "", nteeCode: "", state: "", minRevenue: "", maxRevenue: "", searchTrigger: 0 };
+
+let storeState: StoreState = INITIAL_STATE;
+let listeners: Array<() => void> = [];
 
 function notify() {
-  for (const l of listeners) l(storeState);
+  for (const l of listeners) l();
+}
+
+function subscribe(fn: () => void) {
+  listeners.push(fn);
+  return () => { listeners = listeners.filter((l) => l !== fn); };
+}
+
+function getSnapshot(): StoreState {
+  return storeState;
+}
+
+export function __resetStore() {
+  storeState = INITIAL_STATE;
+  listeners = [];
 }
 
 export function useSearchFiltersStore(): Store {
-  const [localState, setLocalState] = useState(storeState);
-
-  const subscribe = useCallback((fn: typeof listeners[0]) => {
-    listeners.push(fn);
-    return () => {
-      listeners = listeners.filter((l) => l !== fn);
-    };
-  }, []);
-
-  useState(() => {
-    const unsub = subscribe(setLocalState);
-    return unsub;
-  });
+  const localState = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const setQ = useCallback((v: string) => { storeState = { ...storeState, q: v }; notify(); }, []);
   const setNteeCode = useCallback((v: string) => { storeState = { ...storeState, nteeCode: v }; notify(); }, []);

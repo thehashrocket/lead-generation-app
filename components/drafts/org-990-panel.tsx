@@ -8,15 +8,19 @@ type Props = { org: SearchResultOrg };
 
 type EnrichState =
   | { status: "loading" }
-  | { status: "done"; missionText: string | null; programs: string[]; namedContact: { name: string; title: string } | null; limited: boolean }
+  | { status: "done"; missionText: string | null; programs: string[]; namedContact: { name: string; title: string } | null; limited: boolean; city: string | null; numEmployees: number | null; totalExpenses: number | null; website: string | null }
   | { status: "error" };
 
 export function Org990Panel({ org }: Props) {
   const [enrich, setEnrich] = useState<EnrichState>(
     org.missionText
-      ? { status: "done", missionText: org.missionText, programs: [], namedContact: null, limited: false }
+      ? { status: "done", missionText: org.missionText, programs: [], namedContact: null, limited: false, city: org.city ?? null, numEmployees: null, totalExpenses: null, website: null }
       : { status: "loading" },
   );
+  // Seed city/website immediately from org prop (populated by quick-fetch on row click)
+  // so they show before the full enrich completes.
+  const [preloadedCity] = useState<string | null>(org.city ?? null);
+  const [preloadedWebsite] = useState<string | null>(org.website ?? null);
 
   useEffect(() => {
     if (org.missionText) return;
@@ -29,6 +33,10 @@ export function Org990Panel({ org }: Props) {
           programs: data.programs ?? [],
           namedContact: data.namedContact ?? null,
           limited: !data.missionText,
+          city: data.city ?? null,
+          numEmployees: data.numEmployees ?? null,
+          totalExpenses: data.totalExpenses ?? null,
+          website: data.website ?? null,
         });
       })
       .catch(() => setEnrich({ status: "error" }));
@@ -42,14 +50,29 @@ export function Org990Panel({ org }: Props) {
     return `$${n}`;
   };
 
-  const contact =
-    enrich.status === "done" ? enrich.namedContact : null;
+  const contact = enrich.status === "done" ? enrich.namedContact : null;
+  const city = enrich.status === "done" ? enrich.city : preloadedCity;
+  const numEmployees = enrich.status === "done" ? enrich.numEmployees : null;
+  const totalExpenses = enrich.status === "done" ? enrich.totalExpenses : null;
+  const website = enrich.status === "done" ? enrich.website : preloadedWebsite;
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-        {org.state && <span>{org.state}</span>}
+        {org.state && <span>{city ? `${city}, ${org.state}` : org.state}</span>}
         <span>{formatRevenue(org.totalRevenue)} revenue</span>
+        {totalExpenses != null && <span>{formatRevenue(String(totalExpenses))} expenses</span>}
+        {numEmployees != null && <span>{numEmployees} employees</span>}
+        {website && (
+          <a
+            href={website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            Website →
+          </a>
+        )}
         {org.propublicaUrl && (
           <a
             href={org.propublicaUrl}

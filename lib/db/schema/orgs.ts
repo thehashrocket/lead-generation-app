@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 
 export const orgs = pgTable(
   "orgs",
@@ -8,7 +8,11 @@ export const orgs = pgTable(
     name: text("name").notNull(),
     nteeCode: varchar("ntee_code", { length: 10 }),
     state: varchar("state", { length: 2 }),
+    city: text("city"),
+    address: text("address"),
     totalRevenue: text("total_revenue"),
+    totalExpenses: text("total_expenses"),
+    numEmployees: integer("num_employees"),
     propublicaUrl: text("propublica_url"),
     website: text("website"),
     missionText: text("mission_text"),

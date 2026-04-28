@@ -22,6 +22,20 @@
       "when": 1777328800000,
       "tag": "0002_hunter_io_support",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777340113031,
+      "tag": "0003_amused_the_professor",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777346252686,
+      "tag": "0004_spotty_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }

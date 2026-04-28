@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import React from "react";
 
@@ -48,11 +48,9 @@ const ORG: SearchResultOrg = {
   name: "Test Org",
   nteeCode: "A01",
   state: "CA",
-  totalRevenue: 100000,
-  city: "Irvine",
+  totalRevenue: "100000",
+  propublicaUrl: null,
   missionText: null,
-  programs: [],
-  namedContact: null,
 };
 
 const GENERATE_RESPONSE = {
@@ -74,6 +72,10 @@ afterEach(() => {
   cleanup();
 });
 
+function clickGenerate() {
+  fireEvent.click(screen.getByRole("button", { name: /Generate Draft/i }));
+}
+
 describe("DraftSheet — toEmail seeding", () => {
   it("seeds toEmail input from generate response when toEmail is present", async () => {
     vi.stubGlobal(
@@ -85,6 +87,7 @@ describe("DraftSheet — toEmail seeding", () => {
     );
 
     render(<DraftSheet org={ORG} onClose={() => {}} hunterEnabled />);
+    clickGenerate();
 
     await waitFor(() => {
       const input = screen.getByPlaceholderText("Enter recipient email") as HTMLInputElement;
@@ -102,6 +105,7 @@ describe("DraftSheet — toEmail seeding", () => {
     );
 
     render(<DraftSheet org={ORG} onClose={() => {}} hunterEnabled />);
+    clickGenerate();
 
     await waitFor(() => {
       const input = screen.getByPlaceholderText("Enter recipient email") as HTMLInputElement;
@@ -119,6 +123,7 @@ describe("DraftSheet — toEmail seeding", () => {
     );
 
     render(<DraftSheet org={ORG} onClose={() => {}} hunterEnabled />);
+    clickGenerate();
 
     await waitFor(() => {
       expect(screen.getByText("75% confidence")).toBeInTheDocument();
@@ -135,6 +140,7 @@ describe("DraftSheet — toEmail seeding", () => {
     );
 
     render(<DraftSheet org={ORG} onClose={() => {}} hunterEnabled />);
+    clickGenerate();
 
     await waitFor(() => {
       expect(screen.getByText("40% — verify before sending")).toBeInTheDocument();

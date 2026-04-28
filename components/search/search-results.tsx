@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export function SearchResults({ onSelectOrg }: Props) {
   const { q, nteeCode, state, minRevenue, maxRevenue, searchTrigger } = useSearchFiltersStore();
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
   const [curPage, setCurPage] = useState(0);
+  const [loadingEin, setLoadingEin] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (searchTrigger === 0) return;
@@ -57,6 +59,31 @@ export function SearchResults({ onSelectOrg }: Props) {
   function goToPage(page: number) {
     setCurPage(page);
     runSearch(page);
+  }
+
+  async function handleOrgClick(org: SearchResultOrg) {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoadingEin(org.ein);
+    try {
+      const res = await fetch(`/api/orgs/${org.ein}/enrich?quick`, { signal: controller.signal });
+      if (res.ok) {
+        const detail = await res.json();
+        onSelectOrg({
+          ...org,
+          city: detail.city ?? org.city,
+          website: detail.website ?? org.website,
+          totalRevenue: detail.totalRevenue ?? org.totalRevenue,
+        });
+        return;
+      }
+    } catch {
+      // aborted or failed — open with what we have
+    } finally {
+      setLoadingEin(null);
+    }
+    onSelectOrg(org);
   }
 
   if (search.status === "idle") {
@@ -149,28 +176,34 @@ export function SearchResults({ onSelectOrg }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {orgs.map((org) => (
-            <TableRow
-              key={org.ein}
-              className="cursor-pointer hover:bg-gray-50"
-              onClick={() => onSelectOrg(org)}
-            >
-              <TableCell className="text-sm font-medium">{org.name}</TableCell>
-              <TableCell>
-                {org.nteeCode && (
-                  <Badge variant="outline" className="text-xs">
-                    {org.nteeCode}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-sm text-gray-500">{org.state}</TableCell>
-              <TableCell className="text-right text-sm text-gray-500">
-                {org.totalRevenue
-                  ? `$${(Number(org.totalRevenue) / 1_000_000).toFixed(1)}M`
-                  : "—"}
-              </TableCell>
-            </TableRow>
-          ))}
+          {orgs.map((org) => {
+            const isLoading = loadingEin === org.ein;
+            return (
+              <TableRow
+                key={org.ein}
+                className={`cursor-pointer hover:bg-gray-50 ${isLoading ? "opacity-60" : ""}`}
+                onClick={() => !loadingEin && handleOrgClick(org)}
+              >
+                <TableCell className="text-sm font-medium">
+                  {org.name}
+                  {isLoading && <span className="ml-2 text-xs text-gray-400">Loading...</span>}
+                </TableCell>
+                <TableCell>
+                  {org.nteeCode && (
+                    <Badge variant="outline" className="text-xs">
+                      {org.nteeCode}
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm text-gray-500">{org.state}</TableCell>
+                <TableCell className="text-right text-sm text-gray-500">
+                  {org.totalRevenue
+                    ? `$${(Number(org.totalRevenue) / 1_000_000).toFixed(1)}M`
+                    : "—"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 
