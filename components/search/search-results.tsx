@@ -17,18 +17,20 @@ type SearchState =
   | { status: "loading" }
   | { status: "rate_limited"; retryIn: number }
   | { status: "error"; message: string }
-  | { status: "done"; orgs: SearchResultOrg[]; total: number };
+  | { status: "done"; orgs: SearchResultOrg[]; total: number; numPages: number; curPage: number };
 
 export function SearchResults({ onSelectOrg }: Props) {
   const { q, nteeCode, state, minRevenue, maxRevenue, searchTrigger } = useSearchFiltersStore();
   const [search, setSearch] = useState<SearchState>({ status: "idle" });
+  const [curPage, setCurPage] = useState(0);
 
   useEffect(() => {
     if (searchTrigger === 0) return;
-    runSearch();
+    setCurPage(0);
+    runSearch(0);
   }, [searchTrigger]);
 
-  async function runSearch() {
+  async function runSearch(page: number) {
     setSearch({ status: "loading" });
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -36,6 +38,7 @@ export function SearchResults({ onSelectOrg }: Props) {
     if (state) params.set("state", state);
     if (minRevenue) params.set("minRevenue", minRevenue);
     if (maxRevenue) params.set("maxRevenue", maxRevenue);
+    if (page > 0) params.set("page", String(page));
 
     try {
       const res = await fetch(`/api/search?${params}`);
@@ -45,10 +48,15 @@ export function SearchResults({ onSelectOrg }: Props) {
       }
       if (!res.ok) throw new Error(`Search failed: ${res.status}`);
       const data = await res.json();
-      setSearch({ status: "done", orgs: data.organizations, total: data.total_results });
+      setSearch({ status: "done", orgs: data.organizations, total: data.total_results, numPages: data.num_pages, curPage: data.cur_page });
     } catch (err) {
       setSearch({ status: "error", message: "ProPublica search failed. Check your connection and try again." });
     }
+  }
+
+  function goToPage(page: number) {
+    setCurPage(page);
+    runSearch(page);
   }
 
   if (search.status === "idle") {
@@ -74,7 +82,7 @@ export function SearchResults({ onSelectOrg }: Props) {
     return (
       <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         Rate limited by ProPublica. Results are cached — search again in {search.retryIn}s.
-        <Button variant="ghost" size="sm" className="ml-2" onClick={runSearch}>
+        <Button variant="ghost" size="sm" className="ml-2" onClick={() => runSearch(curPage)}>
           Retry
         </Button>
       </div>
@@ -85,14 +93,14 @@ export function SearchResults({ onSelectOrg }: Props) {
     return (
       <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
         {search.message}
-        <Button variant="ghost" size="sm" className="ml-2" onClick={runSearch}>
+        <Button variant="ghost" size="sm" className="ml-2" onClick={() => runSearch(curPage)}>
           Retry
         </Button>
       </div>
     );
   }
 
-  const { orgs, total } = search;
+  const { orgs, total, numPages, curPage: responsePage } = search;
 
   if (orgs.length === 0) {
     return (
@@ -119,7 +127,10 @@ export function SearchResults({ onSelectOrg }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">{total.toLocaleString()} results</p>
+        <p className="text-sm text-gray-500">
+          {orgs.length.toLocaleString()} of ~{total.toLocaleString()} results
+          {numPages > 1 && ` · page ${responsePage + 1} of ${numPages}`}
+        </p>
         <a href={`/api/export/search?q=${q}&nteeCode=${nteeCode}&state=${state}`} download>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Download className="h-3.5 w-3.5" />
@@ -162,6 +173,30 @@ export function SearchResults({ onSelectOrg }: Props) {
           ))}
         </TableBody>
       </Table>
+
+      {numPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={responsePage === 0}
+            onClick={() => goToPage(responsePage - 1)}
+          >
+            ← Previous
+          </Button>
+          <span className="text-xs text-gray-400">
+            Page {responsePage + 1} of {numPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={responsePage >= numPages - 1}
+            onClick={() => goToPage(responsePage + 1)}
+          >
+            Next →
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

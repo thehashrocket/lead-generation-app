@@ -86,4 +86,36 @@ describe("GET /api/search", () => {
     const body = await res.json();
     expect(body.organizations).toHaveLength(1);
   });
+
+  it("passes through ProPublica num_pages and total_results — regression: was hardcoded to num_pages:1", async () => {
+    mockSearchOrgs.mockResolvedValue({
+      organizations: [
+        { ein: "111", name: "Org A", ntee_code: "D20", state: "CA", income_amount: null, propublica_url: null },
+        { ein: "222", name: "Org B", ntee_code: "D20", state: "TX", income_amount: null, propublica_url: null },
+      ],
+      total_results: 47,
+      num_pages: 2,
+      cur_page: 0,
+    });
+    const req = makeSearchRequest({ q: "animal", nteeCode: "D20" });
+    const res = await GET(req);
+    const body = await res.json();
+    expect(body.total_results).toBe(47);
+    expect(body.num_pages).toBe(2);
+    expect(body.cur_page).toBe(0);
+  });
+
+  it("forwards page param to searchOrgs", async () => {
+    mockSearchOrgs.mockResolvedValue({
+      organizations: [],
+      total_results: 47,
+      num_pages: 2,
+      cur_page: 1,
+    });
+    const req = makeSearchRequest({ q: "animal", page: "1" });
+    const res = await GET(req);
+    const body = await res.json();
+    expect(body.cur_page).toBe(1);
+    expect(mockSearchOrgs).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+  });
 });
