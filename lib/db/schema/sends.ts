@@ -6,6 +6,7 @@ export const sendStatusEnum = pgEnum("send_status", [
   "delivered",
   "bounced",
   "complained",
+  "failed",
 ]);
 
 export const sends = pgTable("sends", {
