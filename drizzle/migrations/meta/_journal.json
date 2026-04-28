@@ -15,6 +15,13 @@
       "when": 1777309709229,
       "tag": "0001_add_token_expires_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777328800000,
+      "tag": "0002_hunter_io_support",
+      "breakpoints": true
     }
   ]
 }
