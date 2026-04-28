@@ -9,7 +9,9 @@ vi.mock("@/lib/db", () => ({
   db: {
     select: vi.fn(() => ({
       from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([]),
+        where: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([]),
+        })),
       })),
     })),
     insert: vi.fn(() => ({
