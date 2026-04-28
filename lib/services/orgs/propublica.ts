@@ -127,7 +127,10 @@ export function applyOrganizationFilters(
 ): ProPublicaOrg[] {
   return organizations.filter(
     (o) =>
-      (!filters.nteeCode || o.ntee_code?.startsWith(filters.nteeCode) === true) &&
+      (!filters.nteeCode ||
+        (filters.nteeCode.length === 1
+          ? o.ntee_code?.startsWith(filters.nteeCode) === true
+          : o.ntee_code === filters.nteeCode)) &&
       (!filters.state || o.state === filters.state),
   );
 }

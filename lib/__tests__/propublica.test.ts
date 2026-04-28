@@ -23,6 +23,7 @@ const ORG_D20 = { ein: "11-1111111", name: "Animal Rescue A", ntee_code: "D20", 
 const ORG_P20 = { ein: "22-2222222", name: "Human Services B", ntee_code: "P20", state: "TX", income_amount: 200000, propublica_url: null };
 const ORG_D20_CA = { ein: "33-3333333", name: "Animal Rescue C", ntee_code: "D20", state: "CA", income_amount: 300000, propublica_url: null };
 const ORG_NULL = { ein: "44-4444444", name: "Unknown Type", ntee_code: null, state: "TX", income_amount: 50000, propublica_url: null };
+const ORG_D200 = { ein: "55-5555555", name: "Animal Samaritans", ntee_code: "D200", state: "CA", income_amount: null, propublica_url: null };
 
 describe("searchOrgs", () => {
   afterEach(() => {
@@ -106,10 +107,21 @@ describe("applyOrganizationFilters", () => {
     expect(applyOrganizationFilters(orgs, {})).toHaveLength(4);
   });
 
-  it("filters by nteeCode subcode (D20) using prefix match", () => {
+  it("filters by nteeCode subcode (D20) using exact match", () => {
     const result = applyOrganizationFilters(orgs, { nteeCode: "D20" });
     expect(result).toHaveLength(2);
     expect(result.every((o) => o.ntee_code === "D20")).toBe(true);
+  });
+
+  it("does NOT match D200 when filtering for D20 — regression: startsWith leaked D200", () => {
+    const result = applyOrganizationFilters([ORG_D20, ORG_D200], { nteeCode: "D20" });
+    expect(result).toHaveLength(1);
+    expect(result[0].ntee_code).toBe("D20");
+  });
+
+  it("matches D20 and D200 when filter is single letter D (prefix match)", () => {
+    const result = applyOrganizationFilters([ORG_D20, ORG_D200], { nteeCode: "D" });
+    expect(result).toHaveLength(2);
   });
 
   it("filters by single-letter NTEE category (D) matching all D subcodes — regression: single-letter was returning 0 results", () => {
