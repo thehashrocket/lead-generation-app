@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1.0] - 2026-04-27
+
+### Fixed
+- **NTEE sub-code filter bug**: filtering by a sub-code like `D20` was incorrectly matching `D200`, `D201`, etc. because `applyOrganizationFilters` used `startsWith` for all NTEE values. Now uses exact equality for sub-codes (length > 1) and `startsWith` only for single-letter category filters (e.g. `D`). Same fix applied to the stale-cache fallback path in `/api/search`. Regression tests added.
+
 ## [0.3.0.0] - 2026-04-27
 
 ### Added
