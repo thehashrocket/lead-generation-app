@@ -4,12 +4,14 @@ import { NextRequest } from "next/server";
 const mockDb = vi.hoisted(() => ({ select: vi.fn(), update: vi.fn() }));
 const mockSession = vi.hoisted(() => ({ requireWebSession: vi.fn() }));
 const mockFetch990 = vi.hoisted(() => ({ fetch990XmlFromUrls: vi.fn(), parse990Xml: vi.fn() }));
+const mockWebsiteSearch = vi.hoisted(() => ({ searchOrgWebsite: vi.fn() }));
 const mockGlobalFetch = vi.fn();
 
 vi.mock("@/lib/db", () => ({ db: mockDb }));
 vi.mock("@/lib/db/schema", () => ({ orgs: {} }));
 vi.mock("@/lib/auth/session", () => mockSession);
 vi.mock("@/lib/services/orgs/990-parser", () => mockFetch990);
+vi.mock("@/lib/services/orgs/website-search", () => mockWebsiteSearch);
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn() } }));
 
 vi.stubGlobal("fetch", mockGlobalFetch);
@@ -42,6 +44,7 @@ beforeEach(() => {
   mockDb.update = vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }) });
   mockGlobalFetch.mockResolvedValue({ ok: true, json: async () => ({ organization: { website: null } }) });
   mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
+  mockWebsiteSearch.searchOrgWebsite.mockResolvedValue(null);
 });
 
 describe("GET /api/orgs/[ein]/enrich", () => {
@@ -146,5 +149,38 @@ describe("GET /api/orgs/[ein]/enrich", () => {
     const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
     expect(res.status).toBe(200);
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it("calls Brave search and saves website when ProPublica returns no website", async () => {
+    mockDb.select = selectReturning([{ ...ORG_BASE, website: null }]).select;
+    mockWebsiteSearch.searchOrgWebsite.mockResolvedValueOnce("https://testorg.org");
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
+
+    const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
+    expect(res.status).toBe(200);
+    expect(mockWebsiteSearch.searchOrgWebsite).toHaveBeenCalledWith("Test Org", null, null);
+    expect(mockDb.update).toHaveBeenCalled();
+    const data = await res.json();
+    expect(data.website).toBe("https://testorg.org");
+  });
+
+  it("skips Brave search when org already has a website", async () => {
+    const orgWithSite = { ...ORG_BASE, website: "https://existing.org", city: "Denver", numEmployees: 5 };
+    mockDb.select = selectReturning([orgWithSite]).select;
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
+
+    await GET(makeReq("12-3456789"), makeParams("12-3456789"));
+    expect(mockWebsiteSearch.searchOrgWebsite).not.toHaveBeenCalled();
+  });
+
+  it("returns null website gracefully when Brave search finds nothing", async () => {
+    mockDb.select = selectReturning([{ ...ORG_BASE, website: null }]).select;
+    mockWebsiteSearch.searchOrgWebsite.mockResolvedValueOnce(null);
+    mockFetch990.fetch990XmlFromUrls.mockResolvedValue(null);
+
+    const res = await GET(makeReq("12-3456789"), makeParams("12-3456789"));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.website).toBeNull();
   });
 });

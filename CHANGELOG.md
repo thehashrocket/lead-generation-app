@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3.0] - 2026-04-30
+
+### Added
+- **Brave Search website discovery**: when ProPublica returns no website for an org, the enrichment route now calls the Brave Search API to find it. The service scores results by domain type (`.org` preferred) and name-token match, excluding aggregators and social platforms. The website field is then available for Hunter.io email lookup.
+- `BRAVE_SEARCH_API_KEY` environment variable (optional): when absent, the feature degrades gracefully and the enrichment route continues without a website search.
+
+### Changed
+- **Candid API dropped before integration**: the planned Candid/GuideStar API integration for 990 XML (blocked pending account signup at $4,800/month) was evaluated and abandoned. The Brave Search approach replaces the website-discovery need at near-zero cost.
+
 ## [0.3.2.0] - 2026-04-28
 
 ### Fixed
