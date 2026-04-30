@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { orgs } from "@/lib/db/schema";
 import { requireWebSession } from "@/lib/auth/session";
 import { fetch990XmlFromUrls, parse990Xml } from "@/lib/services/orgs/990-parser";
+import { searchOrgWebsite } from "@/lib/services/orgs/website-search";
 import { logger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -88,6 +89,11 @@ export async function GET(
     const updates: Record<string, unknown> = {};
     if (detail.website && !org.website) updates.website = detail.website;
     if (detail.city && !org.city) updates.city = detail.city;
+    if (!org.website && !updates.website) {
+      const city = (updates.city as string | undefined) ?? org.city ?? null;
+      const found = await searchOrgWebsite(org.name, city, org.state ?? null);
+      if (found) updates.website = found;
+    }
     if (detail.address && !org.address) updates.address = detail.address;
     if (detail.numEmployees != null && org.numEmployees == null) updates.numEmployees = detail.numEmployees;
     if (detail.revenue != null && !org.totalRevenue) updates.totalRevenue = String(detail.revenue);
