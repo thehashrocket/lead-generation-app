@@ -58,22 +58,16 @@ SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5)
 `jasshultz@gmail.com` means Jason gets the actual reply in his inbox, not a digest.
 See plan amendment "Eng Review Pass 2" (D2).
 
-## 990 mission text enrichment — wire Candid/GuideStar API (DECIDED 2026-04-28, blocked on account)
+## ~~990 mission text enrichment — Candid/GuideStar API~~ (ABANDONED 2026-04-30, pivoted)
 ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populates for orgs cached before this change. Financial fields still populate reliably from ProPublica structured data.
 
-**Decision (Eng Review Pass 6, D2):** Wire Candid/GuideStar API. Free nonprofit developer account available at data.candid.org.
+**Abandoned (v0.3.3.0):** Candid "Essentials" tier costs $4,800/month — out of budget. Evaluated before integration and dropped.
 
-**What to do (BLOCKED on signup):**
-1. Sign up at data.candid.org for a developer API key. Add `CANDID_API_KEY` to `lib/env.ts` and Vercel env vars.
-2. `lib/services/orgs/irs-990.ts`: replace `IRS_S3_BASE` fetch with Candid 990 XML endpoint. Keep `fetchIrsXml(ein): Promise<string | null>` signature unchanged.
-3. Add rate-limit guard per Candid free tier limits (check on signup).
-4. Add mock in `lib/__tests__/enrich-route.test.ts`: Candid returns XML → `missionText` populated.
+**Website discovery (RESOLVED 2026-04-30):** The blocking need (org website for Hunter.io domain lookup) is solved via Brave Search API at near-zero cost. `lib/services/orgs/website-search.ts` searches Brave when ProPublica returns no website. `BRAVE_SEARCH_API_KEY` env var (optional — degrades gracefully when absent). See v0.3.3.0 release.
 
-**Caveats (Codex):** Add error handling, rate-limit management, and schema-change monitoring for Candid API responses.
+**Mission text still deferred:** 990 XML enrichment (missionText, programs) remains broken with no low-cost replacement identified. Email pipeline (website → Hunter.io) is unblocked. Mission text panel in DraftSheet shows empty/limited state for orgs not cached before April 2026.
 
-**Note:** `lib/services/orgs/irs-990.ts` and `irs_filing_index` table are scaffolded and ready. The `990-parser.ts` already handles the XML once fetched.
-
-**Start:** After Candid account signup. ~2 hrs implementation once unblocked.
+**If mission text becomes critical:** Options are (a) IRS bulk download CSV (no XML, limited fields), (b) negotiate Candid pricing, (c) accept the limitation and lean on ProPublica structured data for personalization context.
 
 ## ~~Ghost sends — add 'failed' status to sends table~~ (RESOLVED 2026-04-28)
 When Resend returns an error, `sendDraft()` calls `db.delete(sends)` to remove the queued row. If that delete fails (network hiccup), the row stays in `status: "queued"` permanently, pollutes the weekly cap count, and is invisible in the Sent view. Same bug applies to `getWeeklySendCount()`.
