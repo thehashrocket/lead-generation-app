@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { contacts, drafts, orgs } from "@/lib/db/schema";
 import { requireWebSession } from "@/lib/auth/session";
 import { generateDraft } from "@/lib/services/drafts/generate";
+import { enrichOrgFromWebsite, isCooledDown } from "@/lib/services/orgs/website-enrichment";
 import { logger } from "@/lib/logger";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -37,13 +38,55 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (org.programsJson) {
     try { programs = JSON.parse(org.programsJson); } catch {}
   }
+  let missionText = org.missionText;
+
+  // v0.4.0: inline mission enrichment via website scrape + LLM extraction.
+  // Runs when missionText is null AND website is set AND not in cooldown.
+  // NEVER overwrites a mission_source='990_xml' value (the 990 XML cache
+  // is gold-standard; a homepage scrape must not replace it).
+  const shouldEnrich =
+    !missionText &&
+    org.missionSource !== "990_xml" &&
+    org.website &&
+    !isCooledDown(org.missionEnrichmentStatus, org.missionEnrichmentAttemptedAt, true);
+
+  if (shouldEnrich && org.website) {
+    const enrichment = await enrichOrgFromWebsite(org.name, org.website);
+    logger.info({
+      event: "mission_enrichment_attempted",
+      ein,
+      status: enrichment.status,
+      hasMission: !!enrichment.missionText,
+      programCount: enrichment.programs.length,
+    });
+
+    // Persist status + attempt timestamp regardless of outcome.
+    // Mission text + programs only persist on success — never overwrite 990 data.
+    const persist: Partial<typeof orgs.$inferInsert> = {
+      missionEnrichmentStatus: enrichment.status,
+      missionEnrichmentAttemptedAt: new Date(),
+    };
+    if (enrichment.status === "success" && enrichment.missionText) {
+      persist.missionText = enrichment.missionText;
+      persist.missionSource = "website_scrape";
+      if (enrichment.programs.length > 0) {
+        persist.programsJson = JSON.stringify(enrichment.programs);
+      }
+    }
+    await db.update(orgs).set(persist).where(eq(orgs.ein, ein));
+
+    if (enrichment.status === "success") {
+      missionText = enrichment.missionText;
+      programs = enrichment.programs;
+    }
+  }
 
   const result = await generateDraft({
     orgName: org.name,
     nteeCode: org.nteeCode,
     state: org.state,
     totalRevenue: org.totalRevenue,
-    missionText: org.missionText,
+    missionText,
     programs,
   });
 
@@ -76,5 +119,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     promptVersion: PROMPT_VERSION,
     toEmail: existingContact[0]?.email ?? null,
     emailConfidence: existingContact[0]?.emailConfidence ?? null,
+    // v0.4.0: surface freshly-enriched (or already-cached) context so the
+    // client can refresh Org990Panel state without a separate round trip.
+    missionText,
+    programs,
   });
 }
