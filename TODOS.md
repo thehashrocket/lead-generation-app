@@ -58,16 +58,31 @@ SPF/DKIM/DMARC handled by Resend. See plan amendment "Eng Review Pass 2" (D1-D5)
 `jasshultz@gmail.com` means Jason gets the actual reply in his inbox, not a digest.
 See plan amendment "Eng Review Pass 2" (D2).
 
-## ~~990 mission text enrichment — Candid/GuideStar API~~ (ABANDONED 2026-04-30, pivoted)
-ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populates for orgs cached before this change. Financial fields still populate reliably from ProPublica structured data.
+## ~~990 mission text enrichment~~ (RESOLVED 2026-05-14, v0.4.0)
 
-**Abandoned (v0.3.3.0):** Candid "Essentials" tier costs $4,800/month — out of budget. Evaluated before integration and dropped.
+ProPublica removed XML URLs (`filing_url: null` on all filings as of 2026-04) and the IRS S3 bucket (`irs-form-990`) is no longer publicly accessible. Mission text only populated for orgs cached before this change.
 
-**Website discovery (RESOLVED 2026-04-30):** The blocking need (org website for Hunter.io domain lookup) is solved via Brave Search API at near-zero cost. `lib/services/orgs/website-search.ts` searches Brave when ProPublica returns no website. `BRAVE_SEARCH_API_KEY` env var (optional — degrades gracefully when absent). See v0.3.3.0 release.
+**Resolved (v0.4.0):** Implemented website-scrape + Claude Haiku 4.5 LLM extraction as a pre-step of `POST /api/drafts/generate`. Uses the `orgs.website` field populated by Brave Search (v0.3.3.0). Persists to `mission_text`/`programs_json` with `mission_source='website_scrape'` provenance — never overwrites the `'990_xml'` gold cache. Per-status cooldown (`mission_enrichment_status` enum) handles transient failures cleanly. Cost: ~$1.80/month at 200 orgs/month — well under the $50/mo budget. See `lib/services/orgs/website-enrichment.ts`.
 
-**Mission text still deferred:** 990 XML enrichment (missionText, programs) remains broken with no low-cost replacement identified. Email pipeline (website → Hunter.io) is unblocked. Mission text panel in DraftSheet shows empty/limited state for orgs not cached before April 2026.
+**Candid ($4,800/mo) remains rejected.** IRS bulk CSV as a future v0.6+ option once outreach volume justifies a real corpus.
 
-**If mission text becomes critical:** Options are (a) IRS bulk download CSV (no XML, limited fields), (b) negotiate Candid pricing, (c) accept the limitation and lean on ProPublica structured data for personalization context.
+## Per-host scrape concurrency limit (Deferred from /plan-eng-review, Codex #5)
+
+`lib/services/orgs/website-enrichment.ts` enforces per-host concurrency ONLY within a single request handler. Two concurrent `/api/drafts/generate` calls hitting the same org's website would fire two parallel fetches at the same host. In a stateless Vercel Function deployment, true cross-instance throttling needs Vercel Queues or a Redis-backed lock.
+
+**Risk:** at 50 sends/week solo, probability of hitting the same host concurrently is near zero. The polite-UA + 12s budget + hard-stop-on-429 already mitigate the practical case.
+
+**When to revisit:** if outreach scales beyond 100 sends/week OR if a host's operator complains.
+
+## v0.4.0 follow-up: E2E + LLM hallucination eval (Deferred)
+
+The v0.4.0 PR shipped with full unit coverage (44 tests) + the critical null-mission regression test. The 4 Playwright E2E flows and the LLM hallucination eval that were called for in `/plan-eng-review` were deferred to keep the PR shipping.
+
+**What to build:**
+- `e2e/v0.4.0-mission-enrichment.spec.ts` with 4 flows: cached mission (fast path), fresh enrich (~10s), null website (skips enrich), daily cap reached (UI message). Will need a mock for Anthropic gateway + Brave Search.
+- `lib/__tests__/website-enrichment.eval.ts` with ~5 fixture pairs that test hallucination guard — feeds generic nonprofit-style text without specific programs and asserts that `programs[]` is empty.
+
+**When:** before v0.5 ships, or sooner if the scrape extraction produces a quality regression we can't catch in unit tests.
 
 ## ~~Ghost sends — add 'failed' status to sends table~~ (RESOLVED 2026-04-28)
 When Resend returns an error, `sendDraft()` calls `db.delete(sends)` to remove the queued row. If that delete fails (network hiccup), the row stays in `status: "queued"` permanently, pollutes the weekly cap count, and is invisible in the Sent view. Same bug applies to `getWeeklySendCount()`.

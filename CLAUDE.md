@@ -40,6 +40,19 @@ Key routing rules:
 - Tune question sensitivity → invoke /plan-tune
 - Code quality dashboard → invoke /health
 
+## Website scraping policy (v0.4.0+)
+
+`lib/services/orgs/website-enrichment.ts` fetches per-org nonprofit websites
+to extract mission text and named programs. The policy:
+
+- **User-Agent**: `VolunteerReady/1.0 (outreach research tool; contact: jasshultz@gmail.com)` — identifies the tool and provides a contact for any operator who wants us to stop.
+- **Total budget**: a single 12s `AbortController` deadline shared across the entire `/about → /about-us → /our-mission → /mission → /programs → /what-we-do → /` priority chain. First page returning ≥500 chars wins.
+- **Body cap**: 1 MB per fetch. Anything larger returns null.
+- **Robots.txt**: NOT fetched. This is per-org research-volume access (~50/week), not a crawler — robots.txt is meant to gate crawlers, and identifying-UA + low volume is the correct etiquette here.
+- **Hard-stop on 403, 429**: the host has signaled enough.
+- **Same-host redirects only**: cross-domain redirects (often ad networks / link shorteners) are followed only if the new host matches the original.
+- **Concurrency**: per-host concurrency is enforced ONLY within a single request handler. Cross-instance/cross-request concurrency is not enforced (see TODOS.md). At 50 sends/wk the practical risk is near zero.
+
 ## GBrain Search Guidance (configured by /sync-gbrain)
 <!-- gstack-gbrain-search-guidance:start -->
 
