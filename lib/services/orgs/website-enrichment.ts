@@ -131,14 +131,15 @@ export function extractText(html: string): string {
   // Strip remaining tags.
   out = out.replace(/<[^>]+>/g, " ");
 
-  // Decode named entities.
-  out = out.replace(/&[a-z#0-9]+;/gi, (match) => ENTITY_MAP[match.toLowerCase()] ?? " ");
-
-  // Numeric entities (e.g. &#8217;).
+  // Numeric entities first (e.g. &#8217;) — must run before the named-entity
+  // regex below, which would otherwise swallow `&#NN;` and replace with space.
   out = out.replace(/&#(\d+);/g, (_, code) => {
     const n = Number(code);
     return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : " ";
   });
+
+  // Named entities (no leading `#`).
+  out = out.replace(/&[a-z]+;/gi, (match) => ENTITY_MAP[match.toLowerCase()] ?? " ");
 
   // Collapse whitespace, then cap.
   out = out.replace(/[\s ]+/g, " ").trim();
@@ -262,7 +263,9 @@ export async function enrichOrgFromWebsite(
 
 const COOLDOWN_MS: Record<EnrichmentStatus, number> = {
   success: Number.POSITIVE_INFINITY, // never re-attempt a successful enrich
-  no_website: 0, // re-try if website becomes set (handled by caller)
+  // no_website is effectively permanent unless the caller signals a website
+  // change via websiteChanged=true (handled in the early-return below).
+  no_website: Number.POSITIVE_INFINITY,
   fetch_failed: 24 * 60 * 60 * 1000, // 1 day
   cap_reached: 24 * 60 * 60 * 1000, // 1 day
   extract_failed: 7 * 24 * 60 * 60 * 1000, // 7 days
