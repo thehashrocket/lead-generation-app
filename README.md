@@ -1,11 +1,11 @@
 # Lead Generation Tool — 990-Powered Nonprofit Outreach Pipeline
 
-Personal outreach pipeline for nonprofit org discovery, IRS 990 enrichment, LLM-personalized email drafts, and reply tracking. v0.2.0.0.
+Personal outreach pipeline for nonprofit org discovery, mission text enrichment, LLM-personalized email drafts, and reply tracking. v0.4.0.0.
 
 ## What It Does
 
 - **Search nonprofits** via ProPublica (filter by NTEE code, state, revenue; falls back to keyword-only if filter endpoints return 500)
-- **Enrich org profiles** from IRS 990 XML (mission statement, programs list, revenue) via SAX streaming parser
+- **Enrich org profiles** with mission text and programs. For orgs cached before April 2026, parses IRS 990 XML directly via SAX. For new orgs (where ProPublica nulled `filing_url`), scrapes the org's own website (`/about`, `/mission`, etc.) and extracts mission + programs via Claude Haiku 4.5 (~$0.005/org) with `mission_source` provenance so the 990 cache is never overwritten
 - **Generate personalized cold email drafts** via Vercel AI Gateway (Claude Sonnet 4.6 with Haiku fallback)
 - **Send emails** via Resend with VERP reply tracking addresses
 - **Track replies** with inbound webhook: classifies human / OOO / DSN / autoresponder, stores thread state, auto-forwards human replies to personal Gmail
