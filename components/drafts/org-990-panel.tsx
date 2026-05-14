@@ -4,14 +4,20 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import type { SearchResultOrg } from "@/components/search/types";
 
-type Props = { org: SearchResultOrg };
+type Props = {
+  org: SearchResultOrg;
+  // v0.4.0: when DraftSheet completes a generate call, it can push the
+  // freshly-enriched mission/programs back here so the panel reflects what
+  // the email body actually used. Takes precedence over internal fetch state.
+  enrichmentOverride?: { missionText: string | null; programs: string[] } | null;
+};
 
 type EnrichState =
   | { status: "loading" }
   | { status: "done"; missionText: string | null; programs: string[]; namedContact: { name: string; title: string } | null; limited: boolean; city: string | null; numEmployees: number | null; totalExpenses: number | null; website: string | null }
   | { status: "error" };
 
-export function Org990Panel({ org }: Props) {
+export function Org990Panel({ org, enrichmentOverride }: Props) {
   const [enrich, setEnrich] = useState<EnrichState>(
     org.missionText
       ? { status: "done", missionText: org.missionText, programs: [], namedContact: null, limited: false, city: org.city ?? null, numEmployees: null, totalExpenses: null, website: null }
@@ -56,6 +62,21 @@ export function Org990Panel({ org }: Props) {
   const totalExpenses = enrich.status === "done" ? enrich.totalExpenses : null;
   const website = enrich.status === "done" ? enrich.website : preloadedWebsite;
 
+  // Override wins. Set by DraftSheet when /api/drafts/generate returns
+  // freshly-enriched mission/programs from the v0.4.0 inline scrape path.
+  const displayedMission =
+    enrichmentOverride?.missionText ?? (enrich.status === "done" ? enrich.missionText : null);
+  const displayedPrograms =
+    (enrichmentOverride?.programs && enrichmentOverride.programs.length > 0
+      ? enrichmentOverride.programs
+      : enrich.status === "done"
+        ? enrich.programs
+        : []);
+  const hasOverride = enrichmentOverride != null;
+  const showLoading = !hasOverride && enrich.status === "loading";
+  const showError = !hasOverride && enrich.status === "error";
+  const showDone = hasOverride || enrich.status === "done";
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
@@ -93,22 +114,22 @@ export function Org990Panel({ org }: Props) {
 
       <div>
         <p className="mb-1 text-xs font-medium text-gray-500">Mission</p>
-        {enrich.status === "loading" && (
+        {showLoading && (
           <div className="space-y-2">
             <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
             <div className="h-3 w-4/5 animate-pulse rounded bg-gray-100" />
             <p className="text-xs text-gray-400">Fetching mission text from 990 filing...</p>
           </div>
         )}
-        {enrich.status === "error" && (
+        {showError && (
           <Badge variant="outline" className="text-gray-400 text-xs">
             Limited 990 data
           </Badge>
         )}
-        {enrich.status === "done" && (
+        {showDone && (
           <>
-            {enrich.missionText ? (
-              <p className="text-sm leading-relaxed text-gray-700">{enrich.missionText}</p>
+            {displayedMission ? (
+              <p className="text-sm leading-relaxed text-gray-700">{displayedMission}</p>
             ) : (
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-gray-400 text-xs">
@@ -119,11 +140,11 @@ export function Org990Panel({ org }: Props) {
                 </span>
               </div>
             )}
-            {enrich.programs.length > 0 && (
+            {displayedPrograms.length > 0 && (
               <div className="mt-2">
                 <p className="mb-1 text-xs font-medium text-gray-500">Programs</p>
                 <ul className="space-y-1">
-                  {enrich.programs.slice(0, 3).map((p, i) => (
+                  {displayedPrograms.slice(0, 3).map((p, i) => (
                     <li key={i} className="text-xs text-gray-600">
                       • {p}
                     </li>
