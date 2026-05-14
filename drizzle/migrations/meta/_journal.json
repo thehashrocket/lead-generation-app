@@ -43,6 +43,13 @@
       "when": 1777403198722,
       "tag": "0005_funny_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778799138452,
+      "tag": "0006_old_lake",
+      "breakpoints": true
     }
   ]
 }
