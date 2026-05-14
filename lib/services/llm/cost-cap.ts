@@ -42,11 +42,21 @@ export async function readDailyCost(): Promise<number> {
 // still fits under the hard cap, else { allowed: false }.
 // Uses INSERT...ON CONFLICT DO UPDATE...WHERE so two concurrent callers can't both
 // pass the cap. The DB enforces the cap, not a read-then-act pattern.
+//
+// The cap check appears in BOTH the INSERT and UPDATE branches because the WHERE on
+// the DO UPDATE only fires when a row already exists; without an explicit INSERT-side
+// guard, a single reservation > $25 on the first call of the day would land unchecked.
+// Today the largest reservation is ~$0.014 so the practical risk is bounded, but the
+// contract should hold for any reservation amount.
 export async function reserveBudget(reservedUsd: number): Promise<{ allowed: boolean; newCost: number }> {
+  if (reservedUsd > DAILY_HARD_CAP_USD) {
+    return { allowed: false, newCost: await readDailyCost() };
+  }
   const day = today();
+  const id = crypto.randomUUID();
   const result = await db.execute<{ llm_cost_usd: number }>(sql`
-    INSERT INTO usage_log (day, llm_cost_usd, llm_calls)
-    VALUES (${day}, ${reservedUsd}, 1)
+    INSERT INTO usage_log (id, day, llm_cost_usd, llm_calls)
+    VALUES (${id}, ${day}, ${reservedUsd}, 1)
     ON CONFLICT (day) DO UPDATE
       SET llm_cost_usd = usage_log.llm_cost_usd + ${reservedUsd},
           llm_calls = usage_log.llm_calls + 1
@@ -81,9 +91,10 @@ export async function recordFailedCost(model: string, usage: Usage): Promise<voi
   const cost = estimateCostUsd(model, usage);
   if (cost <= 0) return;
   const day = today();
+  const id = crypto.randomUUID();
   await db.execute(sql`
-    INSERT INTO usage_log (day, llm_cost_usd, llm_calls)
-    VALUES (${day}, ${cost}, 1)
+    INSERT INTO usage_log (id, day, llm_cost_usd, llm_calls)
+    VALUES (${id}, ${day}, ${cost}, 1)
     ON CONFLICT (day) DO UPDATE
       SET llm_cost_usd = usage_log.llm_cost_usd + ${cost},
           llm_calls = usage_log.llm_calls + 1

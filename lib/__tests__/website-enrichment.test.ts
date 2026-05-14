@@ -88,7 +88,7 @@ describe("pickBestPage", () => {
     const fetchMock = vi.fn(async (url: string) => {
       // /about returns content; others 404
       if (String(url).endsWith("/about")) {
-        return new Response(`<p>${longBody}</p>`, { status: 200 });
+        return new Response(`<p>${longBody}</p>`, { status: 200, headers: { "Content-Type": "text/html" } });
       }
       return new Response("", { status: 404 });
     });
@@ -189,7 +189,7 @@ describe("enrichOrgFromWebsite", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (String(url).endsWith("/about")) {
-          return new Response(`<p>${longBody}</p>`, { status: 200 });
+          return new Response(`<p>${longBody}</p>`, { status: 200, headers: { "Content-Type": "text/html" } });
         }
         return new Response("", { status: 404 });
       }),

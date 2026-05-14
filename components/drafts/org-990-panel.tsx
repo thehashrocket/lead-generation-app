@@ -64,15 +64,21 @@ export function Org990Panel({ org, enrichmentOverride }: Props) {
 
   // Override wins. Set by DraftSheet when /api/drafts/generate returns
   // freshly-enriched mission/programs from the v0.4.0 inline scrape path.
-  const displayedMission =
-    enrichmentOverride?.missionText ?? (enrich.status === "done" ? enrich.missionText : null);
-  const displayedPrograms =
-    (enrichmentOverride?.programs && enrichmentOverride.programs.length > 0
-      ? enrichmentOverride.programs
-      : enrich.status === "done"
-        ? enrich.programs
-        : []);
+  // When override is present, its arrays are authoritative even if empty —
+  // falling back to enrich.programs on an empty override would show stale
+  // 990-cached programs alongside a freshly-enriched mission, creating drift
+  // between what the panel shows and what the email body actually used.
   const hasOverride = enrichmentOverride != null;
+  const displayedMission = hasOverride
+    ? enrichmentOverride.missionText
+    : enrich.status === "done"
+      ? enrich.missionText
+      : null;
+  const displayedPrograms = hasOverride
+    ? enrichmentOverride.programs
+    : enrich.status === "done"
+      ? enrich.programs
+      : [];
   const showLoading = !hasOverride && enrich.status === "loading";
   const showError = !hasOverride && enrich.status === "error";
   const showDone = hasOverride || enrich.status === "done";
