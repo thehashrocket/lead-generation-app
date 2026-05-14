@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0.0] - 2026-05-14
+
+### Added
+- **Mission text + program enrichment via website scrape**: when an org has no cached mission text (the 990 XML path stopped working after ProPublica nulled `filing_url` in April 2026) AND a known website, `POST /api/drafts/generate` now runs an inline pre-step that fetches the org's `/about`, `/our-mission`, `/programs`, or `/what-we-do` page, strips it to text, and asks Claude Haiku 4.5 (via Vercel AI Gateway) to extract `{ missionText, programs[] }` under a Zod schema. The freshly enriched fields are persisted to the orgs row and returned in the draft response so the DraftSheet panel reflects what the email used.
+- **`mission_source` provenance enum** (`'990_xml' | 'website_scrape'`): a website scrape will NEVER overwrite a `'990_xml'` value. Backfill marks all pre-existing `mission_text` rows as `'990_xml'` so v0.4.0 treats them as gold-standard cache.
+- **`mission_enrichment_status` enum** (`success | no_website | fetch_failed | extract_failed | cap_reached`) and `mission_enrichment_attempted_at` timestamp drive per-status cooldown — a transient gateway outage no longer blackholes an org for 7 days.
+- **Polite scraping policy** documented in CLAUDE.md: identifying `User-Agent`, 12s total fetch budget across the priority chain, 1MB body cap, no robots.txt fetch, same-host redirect chase only, hard-stop on 403/429.
+
+### Changed
+- **Atomic LLM cost cap**: replaced the ceremonial read-then-act `checkDailyCap` + post-hoc fixed-cost `trackUsage` with an atomic `INSERT … ON CONFLICT DO UPDATE … WHERE` that the DB enforces. Two concurrent draft generations can't both pass the cap check. Failed gateway calls now count toward the cap. Per-model rate card uses real `result.usage.{input,output}Tokens` for reconciliation. The `$25/day` hard cap stops being ceremonial.
+
+### Notes
+- E2E Playwright flows and LLM hallucination eval deferred to a follow-up. The critical null-mission regression test locks the v0.3.3.0 fallback so the new enrichment pre-step cannot silently break outreach for orgs without websites.
+
 ## [0.3.3.0] - 2026-04-30
 
 ### Added

@@ -48,6 +48,12 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [sending, setSending] = useState(false);
   const [hunter, setHunter] = useState<HunterState>({ status: "idle" });
+  // v0.4.0: when /api/drafts/generate runs inline enrichment, its response
+  // carries the freshly enriched mission/programs. Push that into the panel
+  // so the user sees the same context the email body was built from.
+  const [missionOverride, setMissionOverride] = useState<
+    { missionText: string | null; programs: string[] } | null
+  >(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 
@@ -81,6 +87,15 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
       if (data.toEmail) {
         setToEmail(data.toEmail);
         setEmailConfidence(data.emailConfidence ?? null);
+      }
+      // Surface the mission/programs the route actually used (whether
+      // freshly enriched in this call or already cached) so the panel
+      // matches the generated email's content.
+      if (data.missionText !== undefined || data.programs !== undefined) {
+        setMissionOverride({
+          missionText: data.missionText ?? null,
+          programs: Array.isArray(data.programs) ? data.programs : [],
+        });
       }
     } catch {
       setDraft({ status: "error", message: "Draft generation failed after 2 attempts." });
@@ -199,7 +214,7 @@ export function DraftSheet({ org, onClose, hunterEnabled = false }: Props) {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: org context */}
           <div className="flex w-[38%] flex-col gap-4 overflow-auto border-r p-6">
-            <Org990Panel org={org} />
+            <Org990Panel org={org} enrichmentOverride={missionOverride} />
 
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-gray-500">To:</label>
